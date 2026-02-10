@@ -52,14 +52,6 @@ fun CrismandoCard (crismando: Crismando, selecionado: Boolean, onClick: () -> Un
                 else
                     MaterialTheme.typography.bodyLarge)
 
-            VerticalDivider(
-                modifier = Modifier
-                    .height(32.dp)
-                    .padding(end = 18.dp),
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline
-            )
-
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = "Presença Confirmada",
