@@ -1,0 +1,26 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.gradle
+build/
+app/build/
+captured_screenshots/
+
+# Local configuration file (contém o caminho do seu SDK)
+local.properties
+
+# Log files
+*.log
+
+# Android Studio 3.0+
+.externalNativeBuild
+.cxx
+
+# Keystore files (NUNCA suba suas chaves de assinatura)
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
+
+app/src/main/assets/crismandos_to_populate.json
