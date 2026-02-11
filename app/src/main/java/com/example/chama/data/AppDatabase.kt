@@ -5,14 +5,16 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.data.PresencaDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-@Database(entities = [Crismando::class], version = 1, exportSchema = false)
+@Database(entities = [Crismando::class, Presenca::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun crismandoDao(): CrismandoDao
+    abstract fun presencaDao(): PresencaDao
 
     companion object {
         @Volatile
@@ -25,7 +27,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "chama_database"
                 )
-                    .addCallback(AppDatabaseCallback(scope, context)) // Adiciona o script aqui
+                    .fallbackToDestructiveMigration()
+                    .addCallback(AppDatabaseCallback(scope, context, provider = { INSTANCE!! }))
                     .build()
                 INSTANCE = instance
                 instance
@@ -36,14 +39,14 @@ abstract class AppDatabase : RoomDatabase() {
     // Script de População
     private class AppDatabaseCallback(
         private val scope: CoroutineScope,
-        private val context: Context
+        private val context: Context,
+        private val provider: () -> AppDatabase
     ) : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             INSTANCE?.let { database ->
                 scope.launch(Dispatchers.IO) {
-                    val dao = database.crismandoDao()
-
+                    val crismandoDao = provider().crismandoDao()
 
                     try {
                         val jsonString = context.assets.open("crismandos_to_populate.json")
@@ -53,7 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
                         val listaNomes: List<String> = Json.decodeFromString(jsonString)
 
                         listaNomes.forEach { nome ->
-                            dao.inserir(Crismando(nome = nome))
+                            crismandoDao.inserir(Crismando(nome = nome))
                         }
                     } catch (e: Exception){
                         e.printStackTrace()

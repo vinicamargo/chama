@@ -19,16 +19,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.example.chama.data.Crismando
 
 
 @Composable
-fun CrismandoCard (crismando: Crismando, selecionado: Boolean, onClick: () -> Unit) {
+fun CrismandoCard (crismando: Crismando, estaPresente: Boolean?,
+                   selecionado: Boolean, onClick: () -> Unit) {
 
     val corFundo by animateColorAsState(
-        targetValue = if (selecionado)
-            MaterialTheme.colorScheme.primaryContainer
+        targetValue = if (estaPresente == true)
+            Color(0x4A15981C)
+        else if (estaPresente == false)
+            Color(0x4A9B0A0A)
         else
             MaterialTheme.colorScheme.surfaceVariant,
         label = "AnimacaoCor"
@@ -52,15 +56,17 @@ fun CrismandoCard (crismando: Crismando, selecionado: Boolean, onClick: () -> Un
                 else
                     MaterialTheme.typography.bodyLarge)
 
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = "Presença Confirmada",
-                modifier = Modifier.padding(horizontal = 16.dp),
-                tint = if (selecionado)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-            )
+            if(estaPresente == false) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Presença Confirmada",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    tint = if (selecionado)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                )
+            }
         }
     }
 

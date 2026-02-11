@@ -12,6 +12,9 @@ interface CrismandoDao {
     @Query("SELECT * FROM crismandos ORDER BY nome ASC ")
     fun getAllCrismandos(): Flow<List<Crismando>>
 
+    @Query("SELECT * FROM crismandos ORDER BY nome ASC ")
+    fun getAllCrismandosStatic(): List<Crismando>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun inserir(crismando: Crismando)
 
