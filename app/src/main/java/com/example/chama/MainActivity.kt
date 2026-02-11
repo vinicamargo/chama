@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.chama.components.ConfirmacaoBottomCard
 import com.example.chama.components.CrismandoCard
 
 class MainActivity : ComponentActivity() {
@@ -59,7 +61,6 @@ class MainActivity : ComponentActivity() {
         val db = AppDatabase.getDatabase(applicationContext, lifecycleScope)
 
         val viewModel = MainViewModel(db.crismandoDao(), db.presencaDao())
-
 
         setContent {
             CHAMATheme {
@@ -179,7 +180,10 @@ fun TelaCrismandos(viewModel: MainViewModel) {
                 isCrismandoPresente = isCrismandoSelecionadoPresente,
                 nome = crismandoSelecionado?.nome,
                 onConfirmar = {
-                    crismandoSelecionado?.let { viewModel.confirmarPresenca(it.crismandoId) }
+                    crismandoSelecionado?.let {
+                        viewModel.alternarPresenca(it.crismandoId)
+                        viewModel.selecionar(null)
+                    }
                 },
                 onCancelar = { viewModel.selecionar(null) }
             )
@@ -187,72 +191,6 @@ fun TelaCrismandos(viewModel: MainViewModel) {
         }
 
     }
-
-
-@Composable
-fun ConfirmacaoBottomCard(
-    isCrismandoPresente: Boolean,
-    nome: String?,
-    onConfirmar: () -> Unit,
-    onCancelar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val corCard = if (isCrismandoPresente)
-        Color(0xFFFD5858) else Color(0xFFB2FFAD)
-
-    val stringAcao = if (isCrismandoPresente)
-        "Desmarcar presença" else "Marcar presença"
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        elevation = CardDefaults.cardElevation(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringAcao,
-                style = MaterialTheme.typography.labelMedium,
-                color = corCard
-            )
-            Text(
-                text = nome ?: "Selecionado",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onCancelar,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = corCard
-                    )
-                ) {
-                    Text("Cancelar")
-                }
-                Button(
-                    onClick = onConfirmar,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = corCard
-                    )
-                ) {
-                    Text("Confirmar")
-                }
-            }
-        }
-    }
-}
 
 sealed class Tela(val rota: String) {
     object Home : Tela("home")

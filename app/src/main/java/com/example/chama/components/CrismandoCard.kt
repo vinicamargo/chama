@@ -56,17 +56,15 @@ fun CrismandoCard (crismando: Crismando, estaPresente: Boolean?,
                 else
                     MaterialTheme.typography.bodyLarge)
 
-            if(estaPresente == false) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Presença Confirmada",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    tint = if (selecionado)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Presença Confirmada",
+                modifier = Modifier.padding(horizontal = 16.dp),
+                tint = if (selecionado)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+            )
         }
     }
 

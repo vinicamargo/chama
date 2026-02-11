@@ -31,9 +31,6 @@ class MainViewModel(
     var textoPesquisa = mutableStateOf("")
         private set
 
-    var idSelecionado = mutableStateOf<Long?>(null)
-        private set
-
     init {
         verificarEGerarListaDeHoje()
     }
@@ -68,14 +65,13 @@ class MainViewModel(
 
     fun onDigitacao(novoTexto: String) {
         textoPesquisa.value = novoTexto
+        crismandoSelecionado.value = null
     }
 
-    fun confirmarPresenca(id: Long) {
+    fun alternarPresenca(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            // Salva como presente (true) para a data de hoje
-            presencaDao.atualizarPresenca(id, dataHoje, true)
-            // Limpa a seleção para fechar o card
-            idSelecionado.value = null
+            val isPresenteHoje = presencaDao.buscarPresencaDoDiaPorCrismando(id, dataHoje)
+            presencaDao.atualizarPresenca(id, dataHoje, !isPresenteHoje)
         }
     }
 }
