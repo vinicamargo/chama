@@ -12,7 +12,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.chama.ui.screens.TelaListasPresencas
-import com.example.chama.ui.screens.TelaExportador
 import com.example.chama.ui.screens.TelaPrincipal
 
 class MainActivity : ComponentActivity() {
@@ -32,14 +31,11 @@ class MainActivity : ComponentActivity() {
                         composable(Tela.Home.rota) {
                             TelaPrincipal(
                                 onIrParaLista = {navController.navigate(Tela.ListaHoje.rota)},
-                                onIrParaExportador = {navController.navigate(Tela.Exportador.rota)}
+                                viewModel = viewModel
                             )
                         }
                         composable(Tela.ListaHoje.rota) {
                             TelaListasPresencas(viewModel = viewModel)
-                        }
-                        composable(Tela.Exportador.rota) {
-                            TelaExportador(viewModel = viewModel)
                         }
                     }
                 }
@@ -51,7 +47,6 @@ class MainActivity : ComponentActivity() {
 sealed class Tela(val rota: String) {
     object Home : Tela("home")
     object ListaHoje : Tela("listaHoje")
-    object Exportador : Tela("exportador")
 }
 
 enum class FiltroPresenca {

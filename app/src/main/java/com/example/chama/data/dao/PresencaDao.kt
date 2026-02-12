@@ -19,10 +19,13 @@ interface PresencaDao {
     @Query("SELECT estaPresente FROM presencas WHERE crismandoId = :crismandoId AND data = :data")
     fun buscarPresencaDoDiaPorCrismando(crismandoId: Long, data: String): Boolean
 
-    @Query("UPDATE presencas SET estaPresente = :status WHERE crismandoId = :crismandoId AND data = :data")
-    fun atualizarPresenca(crismandoId: Long, data: String, status: Boolean)
+    @Query("SELECT * FROM presencas")
+    fun buscarTodasAsPresencasStatic(): List<Presenca>
 
     @Query("SELECT DISTINCT data FROM presencas")
     fun buscarDiasComPresencas(): Flow<List<String>>
+
+    @Query("UPDATE presencas SET estaPresente = :status WHERE crismandoId = :crismandoId AND data = :data")
+    fun atualizarPresenca(crismandoId: Long, data: String, status: Boolean)
 
 }

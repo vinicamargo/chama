@@ -22,7 +22,9 @@ import kotlinx.coroutines.launch
 import java.text.Normalizer
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import kotlin.text.append
 
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
@@ -35,7 +37,7 @@ class MainViewModel(
     var filtroPresencaAtual = mutableStateOf(FiltroPresenca.TODOS)
         private set
     val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     @OptIn(ExperimentalCoroutinesApi::class)
     val presencasDoDia: StateFlow<List<Presenca>> = dataSelecionada
         .flatMapLatest { data ->
@@ -132,8 +134,40 @@ class MainViewModel(
         }
     }
 
-    // Função que seu Spinner/Dropdown vai chamar
     fun atualizarData(novaData: String) {
         dataSelecionada.value = novaData
+    }
+
+    fun exportarParaCSV(): String {
+        val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
+
+        val crismandos = listaCrismandosOriginal.value
+        val datas = domingosComRegistro.value.sorted()
+        val datasFormatadas = datas.map { LocalDate.parse(it).format(formatter) }
+        val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
+
+        val csv = StringBuilder()
+
+        csv.append("\uFEFF")
+
+        csv.append("Nome")
+        datasFormatadas.forEach { data -> csv.append(",$data") }
+        csv.append("\n")
+
+        crismandos.forEach { crismando ->
+            csv.append(crismando.nome)
+
+            datas.forEach { data ->
+                val registro = todasPresencas.find {
+                    it.crismandoId == crismando.crismandoId && it.data == data
+                }
+
+                val status = if (registro?.estaPresente == true) "O" else "F"
+                csv.append(",$status")
+            }
+            csv.append("\n")
+        }
+
+        return csv.toString()
     }
 }

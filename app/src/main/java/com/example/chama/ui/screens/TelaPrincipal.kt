@@ -1,5 +1,6 @@
 package com.example.chama.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,22 +10,34 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import androidx.lifecycle.viewModelScope
+import com.example.chama.MainViewModel
 import com.example.chama.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 
 @Composable
 fun TelaPrincipal(
-    onIrParaLista: () -> Unit,
-    onIrParaExportador: () -> Unit
+    viewModel: MainViewModel,
+    onIrParaLista: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Top,
@@ -57,11 +70,31 @@ fun TelaPrincipal(
 
         Spacer(modifier = Modifier.padding(vertical = 4.dp))
 
-        Button(
-            onClick = onIrParaExportador,
-            modifier = Modifier.fillMaxWidth(0.7f)
-        ) {
-            Text("Exportar Lista de Presença")
+        Button(onClick = {
+            viewModel.viewModelScope.launch(Dispatchers.IO) {
+                val dadosCsv = viewModel.exportarParaCSV()
+
+                // Criar um arquivo temporário
+                val file = File(context.cacheDir, "relatorio_presenca.csv")
+                file.writeText(dadosCsv, charset = Charsets.UTF_8)
+
+                // Abrir compartilhamento
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    file
+                )
+
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/csv"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Exportar Planilha"))
+            }
+        }) {
+            Icon(Icons.Default.Share, contentDescription = null)
+            Text("Exportar Planilha")
         }
     }
 }
