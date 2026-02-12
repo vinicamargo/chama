@@ -14,12 +14,15 @@ interface PresencaDao {
     fun gerarListaPresenca(presencas: List<Presenca>)
 
     @Query("SELECT * FROM presencas WHERE data = :data")
-    fun buscarPresencasDoDia(data: String): Flow<List<Presenca>>
+    fun buscarPresencasPorData(data: String): Flow<List<Presenca>>
 
     @Query("SELECT estaPresente FROM presencas WHERE crismandoId = :crismandoId AND data = :data")
     fun buscarPresencaDoDiaPorCrismando(crismandoId: Long, data: String): Boolean
 
     @Query("UPDATE presencas SET estaPresente = :status WHERE crismandoId = :crismandoId AND data = :data")
     fun atualizarPresenca(crismandoId: Long, data: String, status: Boolean)
+
+    @Query("SELECT DISTINCT data FROM presencas")
+    fun buscarDiasComPresencas(): Flow<List<String>>
 
 }

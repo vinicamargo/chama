@@ -1,6 +1,7 @@
 package com.example.chama
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,6 +12,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +43,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.chama.components.ConfirmacaoBottomCard
 import com.example.chama.components.CrismandoCard
-import com.example.chama.components.SeletorDeFiltro
+import com.example.chama.components.SeletorDeFiltroData
+import com.example.chama.components.SeletorDeFiltroPresenca
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,13 +62,18 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(navController = navController, startDestination = Tela.Home.rota) {
                         composable(Tela.Home.rota) {
-                            TelaPrincipal(onIrParaLista = {
-                                navController.navigate(Tela.Lista.rota)
-                            })
+                            TelaPrincipal(
+                                onIrParaLista = {navController.navigate(Tela.ListaHoje.rota)},
+                                onIrParaExportador = {navController.navigate(Tela.Exportador.rota)}
+                            )
                         }
 
-                        composable(Tela.Lista.rota) {
+                        composable(Tela.ListaHoje.rota) {
                             TelaCrismandos(viewModel = viewModel)
+                        }
+
+                        composable(Tela.Exportador.rota) {
+                            TelaExportador(viewModel = viewModel)
                         }
                     }
                 }
@@ -75,7 +83,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TelaPrincipal(onIrParaLista: () -> Unit) {
+fun TelaPrincipal(
+    onIrParaLista: () -> Unit,
+    onIrParaExportador: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Top,
@@ -103,7 +114,16 @@ fun TelaPrincipal(onIrParaLista: () -> Unit) {
             onClick = onIrParaLista,
             modifier = Modifier.fillMaxWidth(0.7f)
         ) {
-            Text("Ver Lista de Crismandos")
+            Text("Lista de Presença")
+        }
+
+        Spacer(modifier = Modifier.padding(vertical = 4.dp))
+
+        Button(
+            onClick = onIrParaExportador,
+            modifier = Modifier.fillMaxWidth(0.7f)
+        ) {
+            Text("Exportar Lista de Presença")
         }
     }
 }
@@ -114,6 +134,8 @@ fun TelaCrismandos(viewModel: MainViewModel) {
     val presencas by viewModel.presencasDoDia.collectAsState()
     val textoBusca by viewModel.textoPesquisa
     val crismandoSelecionado by viewModel.crismandoSelecionado
+    val dataFiltrada by viewModel.dataSelecionada.collectAsState()
+
 
     val isCrismandoSelecionadoPresente = remember(crismandoSelecionado, presencas) {
         val estaPresente = presencas.find {
@@ -126,7 +148,9 @@ fun TelaCrismandos(viewModel: MainViewModel) {
         Column(modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .padding(top = 30.dp)) {
+            .padding(top = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+
             OutlinedTextField(
                 value = textoBusca,
                 onValueChange = { viewModel.onDigitacao(it) },
@@ -134,10 +158,20 @@ fun TelaCrismandos(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            SeletorDeFiltro(
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SeletorDeFiltroData(
                 viewModel,
-                modifier = Modifier.padding(vertical = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SeletorDeFiltroPresenca(
+                viewModel,
+                modifier = Modifier.fillMaxWidth()
+            )
+
 
             LazyColumn {
                 items(listaCrismandosFiltrada) { crismando ->
@@ -164,20 +198,56 @@ fun TelaCrismandos(viewModel: MainViewModel) {
                 nome = crismandoSelecionado?.nome,
                 onConfirmar = {
                     crismandoSelecionado?.let {
-                        viewModel.alternarPresenca(it.crismandoId)
+                        viewModel.alternarPresenca(it.crismandoId, dataFiltrada)
                         viewModel.selecionar(null)
                     }
                 },
                 onCancelar = { viewModel.selecionar(null) }
             )
+        }
+    }
+}
+
+@Composable
+fun TelaExportador(viewModel: MainViewModel){
+    val diasDeCrisma by viewModel.diasComPresencas.collectAsState()
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.mipmap.logo_foreground),
+            contentDescription = "Logo do App",
+            modifier = Modifier.size(300.dp)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ){
+            diasDeCrisma.forEach {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
             }
         }
 
+        Button(
+            onClick = {println("TESTE OK")}
+        ) {
+            Text("Exportar Lista de Presença")
+        }
     }
+}
 
 sealed class Tela(val rota: String) {
     object Home : Tela("home")
-    object Lista : Tela("lista")
+    object ListaHoje : Tela("listaHoje")
+    object Exportador : Tela("exportador")
 }
 
 enum class FiltroPresenca {
