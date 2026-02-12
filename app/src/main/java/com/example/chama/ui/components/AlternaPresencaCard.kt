@@ -1,4 +1,4 @@
-package com.example.chama.components
+package com.example.chama.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

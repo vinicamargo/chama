@@ -1,4 +1,4 @@
-package com.example.chama.screens
+package com.example.chama.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement

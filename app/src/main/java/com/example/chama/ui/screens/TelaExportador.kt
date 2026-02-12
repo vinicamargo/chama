@@ -1,4 +1,4 @@
-package com.example.chama.screens
+package com.example.chama.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +23,7 @@ import com.example.chama.R
 
 @Composable
 fun TelaExportador(viewModel: MainViewModel){
-    val diasDeCrisma by viewModel.diasComPresencas.collectAsState()
+    val diasDeCrisma by viewModel.domingosComRegistro.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize(),

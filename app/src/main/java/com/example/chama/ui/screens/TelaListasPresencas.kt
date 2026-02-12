@@ -1,4 +1,4 @@
-package com.example.chama.screens
+package com.example.chama.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
@@ -22,13 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.chama.MainViewModel
-import com.example.chama.components.ConfirmacaoBottomCard
-import com.example.chama.components.CrismandoCard
-import com.example.chama.components.SeletorDeFiltroData
-import com.example.chama.components.SeletorDeFiltroPresenca
+import com.example.chama.ui.components.ConfirmacaoBottomCard
+import com.example.chama.ui.components.CrismandoCard
+import com.example.chama.ui.components.SeletorDeFiltroData
+import com.example.chama.ui.components.SeletorDeFiltroPresenca
 
 @Composable
-fun TelaCrismandos(viewModel: MainViewModel) {
+fun TelaListasPresencas(viewModel: MainViewModel) {
     val listaCrismandosFiltrada by viewModel.listaCrismandosFiltrada.collectAsState()
     val presencas by viewModel.presencasDoDia.collectAsState()
     val textoBusca by viewModel.textoPesquisa

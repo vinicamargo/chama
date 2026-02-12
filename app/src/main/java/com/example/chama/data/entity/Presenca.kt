@@ -1,4 +1,4 @@
-package com.example.chama.data
+package com.example.chama.data.entity
 
 import androidx.room.Entity
 

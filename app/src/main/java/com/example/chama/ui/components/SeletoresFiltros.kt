@@ -1,16 +1,21 @@
-package com.example.chama.components
+package com.example.chama.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Text
@@ -24,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
 import com.example.chama.MainViewModel
@@ -38,7 +44,7 @@ fun SeletorDeFiltroData(
     viewModel: MainViewModel,
     modifier: Modifier
 ) {
-    val diasDeCrismaStrings by viewModel.diasComPresencas.collectAsState(initial = emptyList())
+    val diasDeCrismaStrings by viewModel.domingosComRegistro.collectAsState(initial = emptyList())
 
     val diasDeCrisma = diasDeCrismaStrings.map { LocalDate.parse(it) }
 
@@ -92,25 +98,42 @@ fun SeletorDeFiltroPresenca(
     modifier: Modifier
 ){
     val filtroSelecionado by viewModel.filtroPresencaAtual
+    val totalPresentes by viewModel.totalPresentes.collectAsState()
+    val totalAusentes by viewModel.totalAusentes.collectAsState()
+
 
     Row(
         modifier = modifier.fillMaxWidth().padding(bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
-        FiltroBtn("Todos", filtroSelecionado == FiltroPresenca.TODOS) {
+        FiltroBtn(
+            label = "Todos",
+            icone = null,
+            selecionado = filtroSelecionado == FiltroPresenca.TODOS
+        ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.TODOS)
         }
-        FiltroBtn("Presentes", filtroSelecionado == FiltroPresenca.PRESENTES) {
+
+        FiltroBtn(
+            label = " ($totalPresentes)",
+            icone = Icons.Default.CheckCircle,
+            selecionado = filtroSelecionado == FiltroPresenca.PRESENTES
+        ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.PRESENTES)
         }
-        FiltroBtn("Ausentes", filtroSelecionado == FiltroPresenca.AUSENTES) {
+
+        FiltroBtn(
+            label = " ($totalAusentes)",
+            icone = Icons.Default.Close,
+            selecionado = filtroSelecionado == FiltroPresenca.AUSENTES
+        ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.AUSENTES)
         }
     }
 }
 
 @Composable
-fun FiltroBtn(label: String, selecionado: Boolean, onClick: () -> Unit) {
+fun FiltroBtn(label: String, icone: ImageVector?, selecionado: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         contentPadding = PaddingValues(
@@ -122,6 +145,15 @@ fun FiltroBtn(label: String, selecionado: Boolean, onClick: () -> Unit) {
             contentColor = Color.Black
         )
     ) {
-        Text(label)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icone != null){
+                Icon(
+                    imageVector = icone,
+                    contentDescription = "Presentes",
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Text(label)
+        }
     }
 }

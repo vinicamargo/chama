@@ -1,24 +1,20 @@
 package com.example.chama
 
 import android.util.Log
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.chama.data.Crismando
-import com.example.chama.data.CrismandoDao
-import com.example.chama.data.Presenca
+import com.example.chama.data.entity.Crismando
+import com.example.chama.data.dao.CrismandoDao
+import com.example.chama.data.entity.Presenca
 import com.example.data.PresencaDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.count
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -27,25 +23,19 @@ import java.text.Normalizer
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
-import kotlin.reflect.typeOf
 
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
     private val presencaDao: PresencaDao
 ) : ViewModel() {
     val proximoDomingo = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-
     val dataSelecionada = MutableStateFlow(proximoDomingo.toString())
-
-    val diasComPresencas: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
+    val domingosComRegistro: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     var filtroPresencaAtual = mutableStateOf(FiltroPresenca.TODOS)
         private set
-
+    val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     @OptIn(ExperimentalCoroutinesApi::class)
     val presencasDoDia: StateFlow<List<Presenca>> = dataSelecionada
         .flatMapLatest { data ->
@@ -83,6 +73,23 @@ class MainViewModel(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val totalPresentes: StateFlow<Int> = combine(
+        listaCrismandosOriginal,
+        presencasDoDia
+    ){
+        crismandos, presencas ->
+        crismandos.count { c ->
+            presencas.any { p -> p.crismandoId == c.crismandoId && p.estaPresente }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val totalAusentes: StateFlow<Int> = combine(
+        listaCrismandosOriginal,
+        totalPresentes
+    ) { todos, presentes ->
+        todos.size - presentes
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     var textoPesquisa = mutableStateOf("")
         private set
