@@ -30,7 +30,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "chama_database"
                 )
-                    .fallbackToDestructiveMigration()
                     .addCallback(AppDatabaseCallback(scope, context, provider = { INSTANCE!! }))
                     .build()
                 INSTANCE = instance

@@ -1,6 +1,5 @@
 package com.example.chama
 
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
@@ -16,7 +15,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.Normalizer
@@ -24,7 +22,6 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
-import kotlin.text.append
 
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
@@ -33,7 +30,7 @@ class MainViewModel(
     val proximoDomingo = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
     val dataSelecionada = MutableStateFlow(proximoDomingo.toString())
     val domingosComRegistro: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     var filtroPresencaAtual = mutableStateOf(FiltroPresenca.TODOS)
         private set
     val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
@@ -158,11 +155,15 @@ class MainViewModel(
             csv.append(crismando.nome)
 
             datas.forEach { data ->
-                val registro = todasPresencas.find {
-                    it.crismandoId == crismando.crismandoId && it.data == data
-                }
+                var status = ""
 
-                val status = if (registro?.estaPresente == true) "O" else "F"
+                if(LocalDate.parse(data) < LocalDate.now()){
+                    val registro = todasPresencas.find {
+                        it.crismandoId == crismando.crismandoId && it.data == data
+                    }
+
+                    status = if (registro?.estaPresente == true) "O" else "F"
+                }
                 csv.append(",$status")
             }
             csv.append("\n")
