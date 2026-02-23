@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.chama.FiltroPresenca
 import com.example.chama.MainViewModel
 import com.example.chama.ui.components.ConfirmacaoBottomCard
 import com.example.chama.ui.components.CrismandoCard
@@ -33,6 +38,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     val presencas by viewModel.presencasDoDia.collectAsState()
     val textoBusca by viewModel.textoPesquisa
     val crismandoSelecionado by viewModel.crismandoSelecionado
+    val filtroPresenca by viewModel.filtroPresencaAtual
     val dataFiltrada by viewModel.dataSelecionada.collectAsState()
 
 
@@ -50,12 +56,24 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
             .padding(top = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
 
-            OutlinedTextField(
-                value = textoBusca,
-                onValueChange = { viewModel.onDigitacao(it) },
-                label = { Text("Filtrar por nome") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (filtroPresenca == FiltroPresenca.TODOS) {
+                OutlinedTextField(
+                    value = textoBusca,
+                    onValueChange = { viewModel.onDigitacao(it) },
+                    label = { Text("Filtrar por nome") },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        if (textoBusca.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onDigitacao("") }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Limpar campo"
+                                )
+                            }
+                        }
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
