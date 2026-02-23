@@ -157,7 +157,7 @@ class MainViewModel(
             datas.forEach { data ->
                 var status = ""
 
-                if(LocalDate.parse(data) < LocalDate.now()){
+                if(LocalDate.parse(data) <= LocalDate.now()){
                     val registro = todasPresencas.find {
                         it.crismandoId == crismando.crismandoId && it.data == data
                     }
