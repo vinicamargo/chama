@@ -117,6 +117,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     crismandoSelecionado?.let {
                         viewModel.alternarPresenca(it.crismandoId, dataFiltrada)
                         viewModel.selecionar(null)
+                        viewModel.alterarFiltroPresenca(FiltroPresenca.TODOS)
                     }
                 },
                 onCancelar = { viewModel.selecionar(null) }
