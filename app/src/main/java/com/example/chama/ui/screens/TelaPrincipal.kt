@@ -61,40 +61,45 @@ fun TelaPrincipal(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
-            onClick = onIrParaLista,
-            modifier = Modifier.fillMaxWidth(0.7f)
-        ) {
-            Text("Lista de Presença")
-        }
-
-        Spacer(modifier = Modifier.padding(vertical = 4.dp))
-
-        Button(onClick = {
-            viewModel.viewModelScope.launch(Dispatchers.IO) {
-                val dadosCsv = viewModel.exportarParaCSV()
-
-                // Criar um arquivo temporário
-                val file = File(context.cacheDir, "relatorio_presenca.csv")
-                file.writeText(dadosCsv, charset = Charsets.UTF_8)
-
-                // Abrir compartilhamento
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.provider",
-                    file
-                )
-
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/csv"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(intent, "Exportar Planilha"))
+        Column()
+        {
+            Button(
+                onClick = onIrParaLista,
+                modifier = Modifier.fillMaxWidth(0.7f)
+            ) {
+                Text("Lista de Presença")
             }
-        }) {
-            Icon(Icons.Default.Share, contentDescription = null)
-            Text("Exportar Planilha")
+
+            Spacer(modifier = Modifier.padding(vertical = 4.dp))
+
+            Button(
+                onClick =
+                {
+                    viewModel.viewModelScope.launch(Dispatchers.IO) {
+                        val dadosCsv = viewModel.exportarParaCSV()
+
+                        val file = File(context.cacheDir, "relatorio_presenca.csv")
+                        file.writeText(dadosCsv, charset = Charsets.UTF_8)
+
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.provider",
+                            file
+                        )
+
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Exportar Planilha"))
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(0.7f)
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null)
+                Text("  Exportar Planilha")
+            }
         }
     }
 }

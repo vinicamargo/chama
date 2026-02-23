@@ -3,7 +3,7 @@ val roomVersion = project.properties["roomVersion"].toString()
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp") version "1.9.22-1.0.17"
+    id("com.google.devtools.ksp") version "2.3.2"
 }
 
 android {
