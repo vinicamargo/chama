@@ -2,7 +2,6 @@ package com.example.chama
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
@@ -10,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.dao.CrismandoDao
 import com.example.chama.data.entity.Presenca
+import com.example.chama.utils.removerAcentos
 import com.example.data.PresencaDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.Normalizer
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -30,30 +29,31 @@ class MainViewModel(
     private val crismandoDao: CrismandoDao,
     private val presencaDao: PresencaDao
 ) : ViewModel() {
-    val proximoDomingo = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-    val dataSelecionada = MutableStateFlow(proximoDomingo.toString())
-    val domingosComRegistro: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
+    val diaSelecionado = MutableStateFlow(LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).toString())
+    val diasComChamada: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    var filtroPresencaAtual = mutableStateOf(FiltroPresenca.TODOS)
+
+
+    var filtroNomeSelecionado = mutableStateOf("")
         private set
-    val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+
+    var filtroPresencaSelecionado = mutableStateOf(FiltroPresenca.TODOS)
+        private set
     @OptIn(ExperimentalCoroutinesApi::class)
-    val presencasDoDia: StateFlow<List<Presenca>> = dataSelecionada
+    val presencasDoDia: StateFlow<List<Presenca>> = diaSelecionado
         .flatMapLatest { data ->
             presencaDao.buscarPresencasPorData(data)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun String.removerAcentos(): String {
-        val temp = Normalizer.normalize(this, Normalizer.Form.NFD)
-        return temp.replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-    }
 
+    val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val listaCrismandosFiltrada: StateFlow<List<Crismando>> = combine(
         listaCrismandosOriginal,
-        snapshotFlow { textoPesquisa.value },
-        snapshotFlow { filtroPresencaAtual.value },
+        snapshotFlow { filtroNomeSelecionado.value },
+        snapshotFlow { filtroPresencaSelecionado.value },
         presencasDoDia
     ) { original, busca, filtro, presencas ->
         val porNome = if (busca.isBlank()) original else {
@@ -75,6 +75,9 @@ class MainViewModel(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    var crismandoSelecionado = mutableStateOf<Crismando?>(null)
+        private set
+
 
     val totalPresentes: StateFlow<Int> = combine(
         listaCrismandosOriginal,
@@ -93,24 +96,22 @@ class MainViewModel(
         todos.size - presentes
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    var textoPesquisa = mutableStateOf("")
-        private set
-
-    var crismandoSelecionado = mutableStateOf<Crismando?>(null)
-        private set
+    fun alterarFiltroNome(novoTexto: String) {
+        filtroNomeSelecionado.value = novoTexto
+        crismandoSelecionado.value = null
+    }
 
     fun alterarFiltroPresenca(novoFiltro: FiltroPresenca) {
-        filtroPresencaAtual.value = novoFiltro
+        filtroPresencaSelecionado.value = novoFiltro
     }
 
-    fun selecionar(crismando: Crismando?) {
+    fun alterarData(novaData: String) {
+        diaSelecionado.value = novaData
+    }
+
+    fun selecionarCrismando(crismando: Crismando?) {
         crismandoSelecionado.value = if (crismandoSelecionado.value?.crismandoId == crismando?.crismandoId)
             null else crismando
-    }
-
-    fun onDigitacao(novoTexto: String) {
-        textoPesquisa.value = novoTexto
-        crismandoSelecionado.value = null
     }
 
     fun alternarPresenca(id: Long, data: String) {
@@ -120,15 +121,11 @@ class MainViewModel(
         }
     }
 
-    fun atualizarData(novaData: String) {
-        dataSelecionada.value = novaData
-    }
-
     fun exportarParaCSV(): String {
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
         val crismandos = listaCrismandosOriginal.value
-        val datas = domingosComRegistro.value.sorted()
+        val datas = diasComChamada.value.sorted()
         val datasFormatadas = datas.map { LocalDate.parse(it).format(formatter) }
         val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
 
@@ -166,7 +163,7 @@ class MainViewModel(
         crismandoDao.deleteAllCrismandos()
     }
 
-    fun importarDados(context: Context, uri: Uri) {
+    fun importarDadosCsv(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->

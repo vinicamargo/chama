@@ -36,10 +36,10 @@ import com.example.chama.ui.components.SeletorDeFiltroPresenca
 fun TelaListasPresencas(viewModel: MainViewModel) {
     val listaCrismandosFiltrada by viewModel.listaCrismandosFiltrada.collectAsState()
     val presencas by viewModel.presencasDoDia.collectAsState()
-    val textoBusca by viewModel.textoPesquisa
+    val textoBusca by viewModel.filtroNomeSelecionado
     val crismandoSelecionado by viewModel.crismandoSelecionado
-    val filtroPresenca by viewModel.filtroPresencaAtual
-    val dataFiltrada by viewModel.dataSelecionada.collectAsState()
+    val filtroPresenca by viewModel.filtroPresencaSelecionado
+    val dataFiltrada by viewModel.diaSelecionado.collectAsState()
 
 
     val isCrismandoSelecionadoPresente = remember(crismandoSelecionado, presencas) {
@@ -59,12 +59,12 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
             if (filtroPresenca == FiltroPresenca.TODOS) {
                 OutlinedTextField(
                     value = textoBusca,
-                    onValueChange = { viewModel.onDigitacao(it) },
+                    onValueChange = { viewModel.alterarFiltroNome(it) },
                     label = { Text("Filtrar por nome") },
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
                         if (textoBusca.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onDigitacao("") }) {
+                            IconButton(onClick = { viewModel.alterarFiltroNome("") }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
                                     contentDescription = "Limpar campo"
@@ -98,7 +98,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                         crismando,
                         estaPresente = presencaCrismando,
                         selecionado = crismando == crismandoSelecionado,
-                        onClick = {viewModel.selecionar(crismando)}
+                        onClick = {viewModel.selecionarCrismando(crismando)}
                     )
                 }
             }
@@ -116,11 +116,11 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                 onConfirmar = {
                     crismandoSelecionado?.let {
                         viewModel.alternarPresenca(it.crismandoId, dataFiltrada)
-                        viewModel.selecionar(null)
+                        viewModel.selecionarCrismando(null)
                         viewModel.alterarFiltroPresenca(FiltroPresenca.TODOS)
                     }
                 },
-                onCancelar = { viewModel.selecionar(null) }
+                onCancelar = { viewModel.selecionarCrismando(null) }
             )
         }
     }

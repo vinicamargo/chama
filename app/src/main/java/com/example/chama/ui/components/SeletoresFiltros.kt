@@ -44,7 +44,7 @@ fun SeletorDeFiltroData(
     viewModel: MainViewModel,
     modifier: Modifier
 ) {
-    val diasDeCrismaStrings by viewModel.domingosComRegistro.collectAsState(initial = emptyList())
+    val diasDeCrismaStrings by viewModel.diasComChamada.collectAsState(initial = emptyList())
 
     val diasDeCrisma = diasDeCrismaStrings.map { LocalDate.parse(it) }
 
@@ -84,7 +84,7 @@ fun SeletorDeFiltroData(
                     onClick = {
                         selectedOption = dataFormatada
                         expanded = false
-                        viewModel.atualizarData(dataLocalDate.toString())
+                        viewModel.alterarData(dataLocalDate.toString())
                     }
                 )
             }
@@ -97,7 +97,7 @@ fun SeletorDeFiltroPresenca(
     viewModel: MainViewModel,
     modifier: Modifier
 ){
-    val filtroSelecionado by viewModel.filtroPresencaAtual
+    val filtroSelecionado by viewModel.filtroPresencaSelecionado
     val totalPresentes by viewModel.totalPresentes.collectAsState()
     val totalAusentes by viewModel.totalAusentes.collectAsState()
 
