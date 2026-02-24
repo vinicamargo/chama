@@ -28,4 +28,6 @@ interface PresencaDao {
     @Query("UPDATE presencas SET estaPresente = :status WHERE crismandoId = :crismandoId AND data = :data")
     fun atualizarPresenca(crismandoId: Long, data: String, status: Boolean)
 
+    @Query("DELETE FROM presencas")
+    fun deleteAllPresencas()
 }

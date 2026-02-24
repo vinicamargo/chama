@@ -1,6 +1,9 @@
 package com.example.chama.ui.screens
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -38,6 +43,14 @@ fun TelaPrincipal(
 ) {
     val context = LocalContext.current
 
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.importarDados(context, it)
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Top,
@@ -59,7 +72,7 @@ fun TelaPrincipal(
             fontSize = 20.sp
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         Column()
         {
@@ -99,6 +112,19 @@ fun TelaPrincipal(
             ) {
                 Icon(Icons.Default.Share, contentDescription = null)
                 Text("  Exportar Planilha")
+            }
+
+            Spacer(modifier = Modifier.padding(vertical = 4.dp))
+
+            Button(
+                onClick =
+                    {
+                        launcher.launch("text/*")
+                    },
+                modifier = Modifier.fillMaxWidth(0.7f)
+            ) {
+                Icon(Icons.AutoMirrored.Default.ExitToApp, contentDescription = null)
+                Text("  Importar Planilha")
             }
         }
     }

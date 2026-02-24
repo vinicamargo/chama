@@ -1,5 +1,8 @@
 package com.example.chama
 
+import android.content.Context
+import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
@@ -170,5 +173,60 @@ class MainViewModel(
         }
 
         return csv.toString()
+    }
+
+    fun limparDatabase(){
+        presencaDao.deleteAllPresencas()
+        crismandoDao.deleteAllCrismandos()
+    }
+
+    fun importarDados(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
+
+                    val reader = inputStream.bufferedReader()
+                    val linhas = reader.readLines()
+
+                    val datasBruta = linhas[0].split(",", limit = 2)[1].split(",")
+                    val datasLista = datasBruta.map { dataString ->
+                        LocalDate.parse(dataString, formatter).toString()
+                    }
+
+                    limparDatabase()
+
+                    linhas.drop(1).forEach { linha ->
+                        val colunas = linha.split(",", limit = 2)
+
+                        val nome = colunas[0]
+                        val presencasBruta = colunas.getOrNull(1)?.split(",") ?: emptyList()
+
+                        val presencasLista = presencasBruta.map {
+                            it.trim() == "O"
+                        }
+
+                        val presencas = mutableListOf<Presenca>()
+                        val crismando = Crismando(nome = nome)
+
+                        crismandoDao.inserir(crismando)
+
+                        for (i in datasLista.indices){
+                            presencas.add(
+                                Presenca(
+                                crismandoId = crismando.crismandoId,
+                                datasLista[i],
+                                presencasLista[i]
+                                )
+                            )
+                        }
+
+                        presencaDao.gerarListaPresenca(presencas)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }
