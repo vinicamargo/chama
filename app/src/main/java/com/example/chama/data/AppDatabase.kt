@@ -29,41 +29,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "chama_database"
-                )
-                    .addCallback(AppDatabaseCallback(scope, context, provider = { INSTANCE!! }))
-                    .build()
+                ).build()
                 INSTANCE = instance
                 instance
-            }
-        }
-    }
-
-    // Script de População
-    private class AppDatabaseCallback(
-        private val scope: CoroutineScope,
-        private val context: Context,
-        private val provider: () -> AppDatabase
-    ) : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            INSTANCE?.let { database ->
-                scope.launch(Dispatchers.IO) {
-                    val crismandoDao = provider().crismandoDao()
-
-                    try {
-                        val jsonString = context.assets.open("crismandos_to_populate.json")
-                            .bufferedReader()
-                            .use { it.readText() }
-
-                        val listaNomes: List<String> = Json.decodeFromString(jsonString)
-
-                        listaNomes.forEach { nome ->
-                            crismandoDao.inserir(Crismando(nome = nome))
-                        }
-                    } catch (e: Exception){
-                        e.printStackTrace()
-                    }
-                }
             }
         }
     }

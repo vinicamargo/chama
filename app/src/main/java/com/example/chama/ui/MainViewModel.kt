@@ -103,20 +103,6 @@ class MainViewModel(
         filtroPresencaAtual.value = novoFiltro
     }
 
-    init {
-        verificarEGerarPresencasDeDomingo()
-    }
-
-    private fun verificarEGerarPresencasDeDomingo() {
-       viewModelScope.launch(Dispatchers.IO) {
-            val listaCrismandos: List<Crismando> = crismandoDao.getAllCrismandosStatic()
-
-            val novasPresencas = listaCrismandos.map {
-                Presenca(crismandoId = it.crismandoId, data = proximoDomingo.toString(), estaPresente = false)
-            }
-            presencaDao.gerarListaPresenca(novasPresencas)
-        }
-    }
     fun selecionar(crismando: Crismando?) {
         crismandoSelecionado.value = if (crismandoSelecionado.value?.crismandoId == crismando?.crismandoId)
             null else crismando
