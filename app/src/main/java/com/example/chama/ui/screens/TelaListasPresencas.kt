@@ -26,7 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
-import com.example.chama.MainViewModel
+import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.ConfirmacaoBottomCard
 import com.example.chama.ui.components.CrismandoCard
 import com.example.chama.ui.components.SeletorDeFiltroData

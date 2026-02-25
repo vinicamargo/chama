@@ -11,6 +11,7 @@ import com.example.chama.ui.theme.CHAMATheme
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.screens.TelaListasPresencas
 import com.example.chama.ui.screens.TelaPrincipal
 

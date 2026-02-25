@@ -1,4 +1,4 @@
-package com.example.chama
+package com.example.chama.ui
 
 import android.content.Context
 import android.net.Uri
@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.dao.CrismandoDao
 import com.example.chama.data.entity.Presenca

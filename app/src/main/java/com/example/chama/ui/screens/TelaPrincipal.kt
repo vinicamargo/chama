@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
-import com.example.chama.MainViewModel
+import com.example.chama.ui.MainViewModel
 import com.example.chama.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
