@@ -10,8 +10,13 @@ import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.dao.CrismandoDao
 import com.example.chama.data.entity.Presenca
+import com.example.chama.data.entity.Vendedor
+import com.example.chama.utils.TipoVendedor
 import com.example.chama.utils.removerAcentos
-import com.example.data.PresencaDao
+import com.example.chama.data.dao.PresencaDao
+import com.example.chama.data.dao.RifaDao
+import com.example.chama.data.dao.VendedorDao
+import com.example.chama.data.entity.Rifa
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +33,9 @@ import java.time.temporal.TemporalAdjusters
 
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
-    private val presencaDao: PresencaDao
+    private val presencaDao: PresencaDao,
+    private val vendedorDao: VendedorDao,
+    private val rifaDao: RifaDao
 ) : ViewModel() {
     val diaSelecionado = MutableStateFlow(LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).toString())
     val diasComChamada: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
@@ -161,6 +168,7 @@ class MainViewModel(
 
     fun limparDatabase(){
         presencaDao.deleteAllPresencas()
+        vendedorDao.deleteAllCrismandos()
         crismandoDao.deleteAllCrismandos()
     }
 
@@ -194,6 +202,9 @@ class MainViewModel(
                         val crismando = Crismando(nome = nome)
 
                         crismandoDao.inserir(crismando)
+                        vendedorDao.inserirVendedor(
+                            Vendedor(crismando.crismandoId, TipoVendedor.CRISMANDO)
+                        )
 
                         for (i in datasLista.indices){
                             presencas.add(
@@ -210,6 +221,38 @@ class MainViewModel(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun registrarVendedor(nome: String, contato: String) {
+        viewModelScope.launch {
+            val vendedor = Vendedor(
+                vendedorId = System.currentTimeMillis(), // ID Único
+                tipo = TipoVendedor.EXTERNO,
+                nomeExterno = nome
+            )
+            vendedorDao.inserirVendedor(vendedor)
+        }
+    }
+
+    fun popularRifasProvisorio() {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (rifaDao.contarRifas() == 0) {
+                val listaRifas = (1..1000).map { i ->
+                    val bloco = ((i - 1) / 10) + 1
+                    Rifa(
+                        numero = i,
+                        bloco = bloco,
+                        vendedorId = null,
+                        estaPaga = false,
+                        nomeComprador = null
+                    )
+                }
+                rifaDao.inserirRifas(listaRifas)
+                println("RIFAS: 1000 rifas geradas com sucesso!")
+            } else {
+                println("RIFAS: Banco já está populado.")
             }
         }
     }

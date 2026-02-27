@@ -38,7 +38,8 @@ import java.io.File
 @Composable
 fun TelaPrincipal(
     viewModel: MainViewModel,
-    onIrParaLista: () -> Unit
+    onIrParaLista: () -> Unit,
+    onIrParaRifas: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -124,6 +125,15 @@ fun TelaPrincipal(
             ) {
                 Icon(Icons.AutoMirrored.Default.ExitToApp, contentDescription = null)
                 Text("  Importar Planilha")
+            }
+
+            Spacer(modifier = Modifier.padding(vertical = 4.dp))
+
+            Button(
+                onClick = onIrParaRifas,
+                modifier = Modifier.fillMaxWidth(0.7f)
+            ) {
+                Text("Gestão de rifas")
             }
         }
     }

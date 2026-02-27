@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.screens.TelaListasPresencas
 import com.example.chama.ui.screens.TelaPrincipal
+import com.example.chama.ui.screens.TelaRifas
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,7 +22,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val db = AppDatabase.getDatabase(applicationContext, lifecycleScope)
-        val viewModel = MainViewModel(db.crismandoDao(), db.presencaDao())
+        val viewModel = MainViewModel(
+            db.crismandoDao(),
+            db.presencaDao(),
+            db.vendedorDao(),
+            db.rifaDao()
+        )
 
         setContent {
             CHAMATheme {
@@ -31,12 +37,16 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = Tela.Home.rota) {
                         composable(Tela.Home.rota) {
                             TelaPrincipal(
-                                onIrParaLista = {navController.navigate(Tela.ListaHoje.rota)},
+                                onIrParaLista = {navController.navigate(Tela.ListaPresenca.rota)},
+                                onIrParaRifas = {navController.navigate(Tela.Rifas.rota)},
                                 viewModel = viewModel
                             )
                         }
-                        composable(Tela.ListaHoje.rota) {
+                        composable(Tela.ListaPresenca.rota) {
                             TelaListasPresencas(viewModel = viewModel)
+                        }
+                        composable(Tela.Rifas.rota) {
+                            TelaRifas(viewModel)
                         }
                     }
                 }
@@ -47,7 +57,9 @@ class MainActivity : ComponentActivity() {
 
 sealed class Tela(val rota: String) {
     object Home : Tela("home")
-    object ListaHoje : Tela("listaHoje")
+    object ListaPresenca : Tela("listaPresenca")
+
+    object Rifas: Tela("rifas")
 }
 
 enum class FiltroPresenca {

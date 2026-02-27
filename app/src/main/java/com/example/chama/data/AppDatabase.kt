@@ -8,16 +8,25 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.chama.data.dao.CrismandoDao
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Presenca
-import com.example.data.PresencaDao
+import com.example.chama.data.dao.PresencaDao
+import com.example.chama.data.dao.RifaDao
+import com.example.chama.data.dao.VendedorDao
+import com.example.chama.data.entity.Rifa
+import com.example.chama.data.entity.Vendedor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
-@Database(entities = [Crismando::class, Presenca::class], version = 5, exportSchema = false)
+@Database(
+    entities = [Crismando::class, Presenca::class, Vendedor::class, Rifa::class],
+    version = 7,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun crismandoDao(): CrismandoDao
     abstract fun presencaDao(): PresencaDao
+    abstract fun vendedorDao(): VendedorDao
+    abstract fun rifaDao(): RifaDao
 
     companion object {
         @Volatile
@@ -29,10 +38,13 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "chama_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
         }
     }
 }
+
