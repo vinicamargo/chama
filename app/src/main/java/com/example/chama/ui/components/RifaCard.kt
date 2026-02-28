@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -19,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chama.data.entity.Rifa
@@ -99,9 +102,14 @@ fun RifaCard(
 
                 }
                 if (isBlocoSelecionado) {
+
+                    HorizontalDivider(color = Color(0x59B3B9FF), thickness = 1.dp)
+
                     OutlinedButton(
                         onClick = { onAlterar() },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        border = null,
+                        shape = RectangleShape
                     ) {
                         Text("Alterar", fontSize = 12.sp)
                     }

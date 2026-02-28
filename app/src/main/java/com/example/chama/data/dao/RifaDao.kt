@@ -19,4 +19,6 @@ interface RifaDao {
     fun inserirRifas(rifas: List<Rifa>)
     @Query("UPDATE rifas SET vendedorId = :vendedorId WHERE bloco = :numBloco")
     fun vincularVendedorAoBloco(vendedorId: Long, numBloco: Int)
+    @Query("UPDATE rifas SET vendedorId = NULL WHERE bloco = :numBloco")
+    fun desvincularVendedorDoBloco(numBloco: Int)
 }

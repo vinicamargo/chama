@@ -32,6 +32,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import kotlin.random.Random
 
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
@@ -118,6 +119,21 @@ class MainViewModel(
         }
         (listaV + listaC).sortedBy { it.nome }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val listaVendedoresFiltrados: StateFlow<List<PessoaVendedora>> = combine(
+        listaVendedores,
+        snapshotFlow { filtroNomeSelecionado.value }
+    ){ vendedores, busca ->
+        if (busca.isBlank()) {
+            vendedores
+        } else {
+            val buscaLimpa = busca.removerAcentos()
+            vendedores.filter { v ->
+                v.nome.removerAcentos().contains(buscaLimpa, ignoreCase = true)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
 
     val mapaNomeVendedores: StateFlow<Map<Long, String>> = listaVendedores
         .map { lista ->
@@ -252,11 +268,11 @@ class MainViewModel(
         }
     }
 
-    fun registrarVendedor(nome: String, contato: String) {
-        viewModelScope.launch {
+    fun registrarVendedor(nome: String, tipoVendedor: TipoVendedor) {
+        viewModelScope.launch(Dispatchers.IO){
             val vendedor = Vendedor(
-                vendedorId = System.currentTimeMillis(), // ID Único
-                tipo = TipoVendedor.EXTERNO,
+                vendedorId = Random.nextLong(1, Long.MAX_VALUE), // ID Único
+                tipo = tipoVendedor,
                 nomeExterno = nome
             )
             vendedorDao.inserirVendedor(vendedor)
@@ -292,6 +308,12 @@ class MainViewModel(
     fun vincularVendedorAoBloco(vendedorId: Long, bloco: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
+        }
+    }
+
+    fun desvincularVendedorDoBloco(bloco: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            rifaDao.desvincularVendedorDoBloco(bloco)
         }
     }
 }
