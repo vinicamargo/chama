@@ -92,8 +92,8 @@ fun RifaCard(
                 ) {
                     Text(
                         text = nomeVendedor?.takeIf { it.isNotEmpty() }?.
-                        let { "Vendedor(a): $it" } ?: "Sem vendedor vinculado",
-                        modifier = Modifier.padding(start = 16.dp, bottom = 16.dp),
+                        let { "Vendedor(a): ${it.split(" ").take(3).joinToString(" ")}" } ?: "Sem vendedor vinculado",
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 14.sp
                     )

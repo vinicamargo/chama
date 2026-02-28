@@ -27,6 +27,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -48,7 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.chama.data.entity.Rifa
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.ListaVendedoresSheet
 import com.example.chama.ui.components.RifaCard
@@ -249,10 +252,12 @@ fun TelaRifas(
                 when (conteudoSheet) {
                     TipoConteudoSheet.ACOES -> {
                         OpcoesBlocoSheet(
+                            viewModel = viewModel,
                             onAlterarVendedor = { conteudoSheet = TipoConteudoSheet.SELECAO_VENDEDOR },
                             onRemoverVendedor = { showDialog = true },
                             onAlterarStatus = { conteudoSheet = TipoConteudoSheet.SELECAO_ESTADO },
-                            onMarcarComoPago = { /* Lógica direta no ViewModel */ showSheet = false }
+                            onMarcarComoPago = { /* Lógica direta no ViewModel */ showSheet = false },
+                            rifaSelecionada = rifaSelecionada!!
                         )
                     }
                     TipoConteudoSheet.SELECAO_VENDEDOR -> {
@@ -289,7 +294,7 @@ fun TelaRifas(
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.desvincularVendedorDoBloco(rifaSelecionada?.bloco ?: 0)
-                        showDialog = false; showSheet = false
+                        showDialog = false; showSheet = false; viewModel.selecionarRifa(null)
                     }) {
                         Text("Confirmar", color = MaterialTheme.colorScheme.primary)
                     }
@@ -308,31 +313,53 @@ fun TelaRifas(
 
 @Composable
 fun OpcoesBlocoSheet(
+    viewModel: MainViewModel,
     onAlterarVendedor: () -> Unit,
     onRemoverVendedor: () -> Unit,
     onAlterarStatus: () -> Unit,
-    onMarcarComoPago: () -> Unit
+    onMarcarComoPago: () -> Unit,
+    rifaSelecionada: Rifa
 ) {
+    val mapaNomeVendedores by viewModel.mapaNomeVendedores.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(14.dp)
+            .padding(horizontal = 14.dp)
+            .padding(bottom = 14.dp)
     ) {
-        Text(
-            text = "Gerenciar Bloco",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 22.dp)
+        Column(
+           modifier = Modifier.fillMaxWidth(),
+           horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Gerenciar bloco ${rifaSelecionada.bloco}",
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = mapaNomeVendedores[rifaSelecionada.vendedorId]?.let { "Vendedor(a): $it"
+                } ?: "Sem vendedor",
+                modifier = Modifier.padding(top = 12.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 20.dp, bottom = 12.dp)
         )
 
         // Opção 1: Vendedor
         ItemOpcaoSheet(
-            titulo = "Alterar Vendedor",
+            titulo = "Alterar vendedor",
             subtitulo = "Vincular crismando, catequista ou vendedor externo",
             onClick = onAlterarVendedor
         )
 
         ItemOpcaoSheet(
-            titulo = "Remover Vendedor",
+            titulo = "Remover vendedor",
             subtitulo = "Remover vendedor vinculado",
             onClick = onRemoverVendedor
         )
