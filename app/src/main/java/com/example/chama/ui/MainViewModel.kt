@@ -17,6 +17,7 @@ import com.example.chama.data.dao.PresencaDao
 import com.example.chama.data.dao.RifaDao
 import com.example.chama.data.dao.VendedorDao
 import com.example.chama.data.entity.Rifa
+import com.example.chama.data.model.PessoaVendedora
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -104,6 +106,31 @@ class MainViewModel(
         todos.size - presentes
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val listaVendedores: StateFlow<List<PessoaVendedora>> = combine(
+        vendedorDao.getAllVendedores(),
+        crismandoDao.getAllCrismandos()
+    ) { vendedores, crismandos ->
+        val listaV = vendedores.filter { it.tipo != TipoVendedor.CRISMANDO }.map {
+            PessoaVendedora(it.vendedorId, it.nomeExterno ?: "Vendedor Externo", it.tipo)
+        }
+        val listaC = crismandos.map {
+            PessoaVendedora(it.crismandoId, it.nome, TipoVendedor.CRISMANDO)
+        }
+        (listaV + listaC).sortedBy { it.nome }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val mapaNomeVendedores: StateFlow<Map<Long, String>> = listaVendedores
+        .map { lista ->
+            lista.associateBy({ it.id }, { it.nome })
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val listaRifas: StateFlow<List<Rifa>> = rifaDao.getRifas()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    var rifaSelecionada = mutableStateOf<Rifa?>(null)
+        private set
+
     fun alterarFiltroNome(novoTexto: String) {
         filtroNomeSelecionado.value = novoTexto
         crismandoSelecionado.value = null
@@ -168,7 +195,7 @@ class MainViewModel(
 
     fun limparDatabase(){
         presencaDao.deleteAllPresencas()
-        vendedorDao.deleteAllCrismandos()
+        vendedorDao.deletarVendedoresCRISMANDO()
         crismandoDao.deleteAllCrismandos()
     }
 
@@ -254,6 +281,17 @@ class MainViewModel(
             } else {
                 println("RIFAS: Banco já está populado.")
             }
+        }
+    }
+
+    fun selecionarRifa(rifa: Rifa?){
+        rifaSelecionada.value = if (rifaSelecionada.value?.numero == rifa?.numero)
+            null else rifa
+    }
+
+    fun vincularVendedorAoBloco(vendedorId: Long, bloco: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
         }
     }
 }

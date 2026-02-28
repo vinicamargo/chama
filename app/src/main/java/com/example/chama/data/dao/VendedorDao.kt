@@ -14,9 +14,9 @@ interface VendedorDao {
     fun inserirVendedor(vendedor: Vendedor)
 
     @Query("SELECT * FROM vendedores")
-    fun listarTodos(): Flow<List<Vendedor>>
+    fun getAllVendedores(): Flow<List<Vendedor>>
 
     @Query("DELETE FROM vendedores WHERE tipo = 'CRISMANDO'")
-    fun deleteAllCrismandos()
+    fun deletarVendedoresCRISMANDO()
 
 }
