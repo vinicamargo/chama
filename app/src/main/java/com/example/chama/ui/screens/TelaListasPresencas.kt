@@ -1,5 +1,6 @@
 package com.example.chama.ui.screens
 
+import android.widget.Space
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -30,7 +31,7 @@ import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.ConfirmacaoBottomCard
 import com.example.chama.ui.components.CrismandoCard
 import com.example.chama.ui.components.SeletorDeFiltroData
-import com.example.chama.ui.components.SeletorDeFiltroPresenca
+import com.example.chama.ui.components.SeletorDeFiltroPresencaEAcoes
 
 @Composable
 fun TelaListasPresencas(viewModel: MainViewModel) {
@@ -56,6 +57,18 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
             .padding(top = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
 
+            SeletorDeFiltroData(
+                viewModel,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SeletorDeFiltroPresencaEAcoes(
+                viewModel,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             if (filtroPresenca == FiltroPresenca.TODOS) {
                 OutlinedTextField(
                     value = textoBusca,
@@ -75,20 +88,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SeletorDeFiltroData(
-                viewModel,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SeletorDeFiltroPresenca(
-                viewModel,
-                modifier = Modifier.fillMaxWidth()
-            )
-
+            Spacer(modifier = Modifier.height(8.dp))
 
             LazyColumn {
                 items(listaCrismandosFiltrada) { crismando ->

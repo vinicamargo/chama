@@ -316,4 +316,10 @@ class MainViewModel(
             rifaDao.desvincularVendedorDoBloco(bloco)
         }
     }
+
+    fun alternarPagamentoRifa(rifa: Rifa){
+        viewModelScope.launch(Dispatchers.IO){
+            rifaDao.atualizarPagamentoBloco(rifa.bloco, !rifa.estaPaga)
+        }
+    }
 }

@@ -101,7 +101,7 @@ fun ListaVendedoresSheet(
                     }
                 },
                 title = { Text("Confirmar alteração de vendedor") },
-                text = { Text("Deseja vincular o bloco a ${vendedorSelecionadoParaConfirmar!!.nome}?") }
+                text = { Text("Deseja vincular como vendedor ${vendedorSelecionadoParaConfirmar!!.nome} ao bloco?") }
             )
         }
     }

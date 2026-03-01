@@ -13,6 +13,8 @@ interface RifaDao {
 
     @Query("SELECT * FROM rifas")
     fun getRifas(): Flow<List<Rifa>>
+    @Query("SELECT * FROM rifas WHERE numero = :numeroRifa")
+    fun getRifaPorNumero(numeroRifa: Int): Rifa
     @Query("SELECT COUNT(*) FROM rifas")
     fun contarRifas(): Int
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -21,4 +23,6 @@ interface RifaDao {
     fun vincularVendedorAoBloco(vendedorId: Long, numBloco: Int)
     @Query("UPDATE rifas SET vendedorId = NULL WHERE bloco = :numBloco")
     fun desvincularVendedorDoBloco(numBloco: Int)
+    @Query("UPDATE rifas SET estaPaga = :estaPaga WHERE bloco = :bloco")
+    fun atualizarPagamentoBloco (bloco: Int, estaPaga: Boolean)
 }

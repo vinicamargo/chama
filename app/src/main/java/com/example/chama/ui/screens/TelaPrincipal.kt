@@ -41,35 +41,25 @@ fun TelaPrincipal(
     onIrParaLista: () -> Unit,
     onIrParaRifas: () -> Unit
 ) {
-    val context = LocalContext.current
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            viewModel.importarDadosCsv(context, it)
-        }
-    }
-
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            painter = painterResource(id = R.mipmap.logo_foreground),
+            painter = painterResource(id = R.mipmap.basilica_coat_of_arms_foreground),
             contentDescription = "Logo do App",
-            modifier = Modifier.size(300.dp)
+            modifier = Modifier.size(400.dp)
         )
         Text(
-            text = "CHAMA 1.0",
-            fontSize = 32.sp
+            text = "CHAMA",
+            fontSize = 42.sp
         )
         Text(
-            text = "Lista de chamada dos crismandos 25/26",
+            text = "Aplicativo auxiliar da catequese de crisma 25/26",
             modifier = Modifier.padding(top = 15.dp),
             textAlign = TextAlign.Center,
-            fontSize = 20.sp
+            fontSize = 16.sp,
         )
 
         Spacer(modifier = Modifier.height(36.dp))
@@ -81,50 +71,6 @@ fun TelaPrincipal(
                 modifier = Modifier.fillMaxWidth(0.7f)
             ) {
                 Text("Lista de Presença")
-            }
-
-            Spacer(modifier = Modifier.padding(vertical = 4.dp))
-
-            Button(
-                onClick =
-                {
-                    viewModel.viewModelScope.launch(Dispatchers.IO) {
-                        val dadosCsv = viewModel.exportarParaCSV()
-
-                        val file = File(context.cacheDir, "relatorio_presenca.csv")
-                        file.writeText(dadosCsv, charset = Charsets.UTF_8)
-
-                        val uri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.provider",
-                            file
-                        )
-
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/csv"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Exportar Planilha"))
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(0.7f)
-            ) {
-                Icon(Icons.Default.Share, contentDescription = null)
-                Text("  Exportar Planilha")
-            }
-
-            Spacer(modifier = Modifier.padding(vertical = 4.dp))
-
-            Button(
-                onClick =
-                    {
-                        launcher.launch("text/*")
-                    },
-                modifier = Modifier.fillMaxWidth(0.7f)
-            ) {
-                Icon(Icons.AutoMirrored.Default.ExitToApp, contentDescription = null)
-                Text("  Importar Planilha")
             }
 
             Spacer(modifier = Modifier.padding(vertical = 4.dp))

@@ -1,6 +1,5 @@
 package com.example.chama.ui.screens
 
-import android.graphics.drawable.shapes.RoundRectShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,13 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -76,7 +72,9 @@ fun TelaRifas(
     var showSheet by remember { mutableStateOf(false) }
     var conteudoSheet by remember { mutableStateOf(TipoConteudoSheet.ACOES) }
 
-    var showDialog by remember { mutableStateOf(false) }
+    var shouldShowRemovalDialog by remember { mutableStateOf(false) }
+    var shouldShowAlternarPagamentoDialog by remember { mutableStateOf(false) }
+
 
     Scaffold(
         floatingActionButton = {
@@ -164,7 +162,7 @@ fun TelaRifas(
             AlertDialog(
                 onDismissRequest = {
                     showNovoVendedorDialog = false
-                    nomeNovoVendedor = "" // Limpa ao fechar
+                    nomeNovoVendedor = ""
                 },
                 title = {
                     Text(text = "Novo Vendedor")
@@ -178,7 +176,7 @@ fun TelaRifas(
                             label = { Text("Nome completo") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp) // Mantendo o padrão curvado que você curtiu
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         ExposedDropdownMenuBox(
@@ -186,9 +184,9 @@ fun TelaRifas(
                             onExpandedChange = { expandedTipoVendedor = !expandedTipoVendedor },
                         ) {
                             OutlinedTextField(
-                                value = tipoSelecionado.name, // Mostra o nome do Enum selecionado
+                                value = tipoSelecionado.name,
                                 onValueChange = {},
-                                readOnly = true, // Usuário não digita aqui
+                                readOnly = true,
                                 label = { Text("Tipo") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoVendedor) },
                                 modifier = Modifier
@@ -254,9 +252,8 @@ fun TelaRifas(
                         OpcoesBlocoSheet(
                             viewModel = viewModel,
                             onAlterarVendedor = { conteudoSheet = TipoConteudoSheet.SELECAO_VENDEDOR },
-                            onRemoverVendedor = { showDialog = true },
-                            onAlterarStatus = { conteudoSheet = TipoConteudoSheet.SELECAO_ESTADO },
-                            onMarcarComoPago = { /* Lógica direta no ViewModel */ showSheet = false },
+                            onRemoverVendedor = { shouldShowRemovalDialog = true },
+                            onAlternarIsPago = {  shouldShowAlternarPagamentoDialog = true },
                             rifaSelecionada = rifaSelecionada!!
                         )
                     }
@@ -277,35 +274,61 @@ fun TelaRifas(
                                 })
                         }
                     }
-                    TipoConteudoSheet.SELECAO_ESTADO -> {
-                        Text("HAHAHAHAH")
-//                        ListaEstadosSheet(onEstadoSelected = { status ->
-//                            viewModel.atualizarStatus(status, rifaSelecionada?.bloco)
-//                            showSheet = false
-//                        })
-                    }
                 }
             }
         }
 
-        if (showDialog) {
+        if (shouldShowRemovalDialog) {
             AlertDialog(
-                onDismissRequest = { showDialog = false },
+                onDismissRequest = { shouldShowRemovalDialog = false },
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.desvincularVendedorDoBloco(rifaSelecionada?.bloco ?: 0)
-                        showDialog = false; showSheet = false; viewModel.selecionarRifa(null)
+                        shouldShowRemovalDialog = false; showSheet = false; viewModel.selecionarRifa(null)
                     }) {
                         Text("Confirmar", color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDialog = false }) {
+                    TextButton(onClick = { shouldShowRemovalDialog = false }) {
                         Text("Cancelar")
                     }
                 },
                 title = { Text("Confirmar remoção de vendedor") },
                 text = { Text("Deseja remover o vendedor vinculado ao bloco?") }
+            )
+        }
+
+        if (shouldShowAlternarPagamentoDialog) {
+
+            var title = ""
+            var text = ""
+
+            if (rifaSelecionada?.estaPaga == true){
+                    title = "Cancelar confirmação de pagamento"
+                    text = "Deseja cancelar a confirmação de pagamento para o bloco?"
+            } else {
+                    title = "Confirmar pagamento"
+                    text = "Deseja confirmar o pagamento para o bloco?"
+            }
+
+            AlertDialog(
+                onDismissRequest = { shouldShowAlternarPagamentoDialog = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.alternarPagamentoRifa(rifaSelecionada!!)
+                        shouldShowAlternarPagamentoDialog = false; showSheet = false; viewModel.selecionarRifa(null)
+                    }) {
+                        Text("Confirmar", color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { shouldShowAlternarPagamentoDialog = false }) {
+                        Text("Cancelar")
+                    }
+                },
+                title = { Text(title) },
+                text = { Text(text) }
             )
         }
     }
@@ -316,11 +339,14 @@ fun OpcoesBlocoSheet(
     viewModel: MainViewModel,
     onAlterarVendedor: () -> Unit,
     onRemoverVendedor: () -> Unit,
-    onAlterarStatus: () -> Unit,
-    onMarcarComoPago: () -> Unit,
+    onAlternarIsPago: () -> Unit,
     rifaSelecionada: Rifa
 ) {
     val mapaNomeVendedores by viewModel.mapaNomeVendedores.collectAsState()
+    val isPago = rifaSelecionada.estaPaga
+
+    var titleAlternarPagamento = ""
+    var subtitleAlternarPagamento = ""
 
     Column(
         modifier = Modifier
@@ -351,32 +377,33 @@ fun OpcoesBlocoSheet(
             modifier = Modifier.padding(top = 20.dp, bottom = 12.dp)
         )
 
-        // Opção 1: Vendedor
         ItemOpcaoSheet(
-            titulo = "Alterar vendedor",
+            titulo = "${ if (rifaSelecionada.vendedorId == null) "Vincular" else ("Alterar") } vendedor",
             subtitulo = "Vincular crismando, catequista ou vendedor externo",
             onClick = onAlterarVendedor
         )
 
-        ItemOpcaoSheet(
-            titulo = "Remover vendedor",
-            subtitulo = "Remover vendedor vinculado",
-            onClick = onRemoverVendedor
-        )
+        if (isPago){
+            titleAlternarPagamento = "Cancelar pagamento"
+            subtitleAlternarPagamento = "Informar pagamento não efetuado para o bloco"
+        } else {
+            titleAlternarPagamento = "Confirmar pagamento"
+            subtitleAlternarPagamento = "Informar pagamento efetuado para o bloco"
+        }
 
-        // Opção 3: Status
-//        ItemOpcaoSheet(
-//            titulo = "Alterar Estado da Rifa",
-//            subtitulo = "Pendente, Entregue ou Devolvido",
-//            onClick = onAlterarStatus
-//        )
+        if (rifaSelecionada.vendedorId != null) {
+            ItemOpcaoSheet(
+                titulo = "Remover vendedor",
+                subtitulo = "Remover vendedor vinculado",
+                onClick = onRemoverVendedor
+            )
 
-        // Opção 4: Atalho de Pagamento
-        ItemOpcaoSheet(
-            titulo = "Marcar como Pago",
-            subtitulo = "Registrar entrada do valor integral",
-            onClick = onMarcarComoPago
-        )
+            ItemOpcaoSheet(
+                titulo = titleAlternarPagamento,
+                subtitulo = subtitleAlternarPagamento,
+                onClick = onAlternarIsPago
+            )
+        }
     }
 }
 
@@ -395,4 +422,4 @@ fun ItemOpcaoSheet(titulo: String, subtitulo: String, onClick: () -> Unit) {
     }
 }
 
-enum class TipoConteudoSheet { ACOES, SELECAO_VENDEDOR, SELECAO_ESTADO }
+enum class TipoConteudoSheet { ACOES, SELECAO_VENDEDOR }
