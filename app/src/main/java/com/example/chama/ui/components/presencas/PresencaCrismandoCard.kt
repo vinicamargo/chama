@@ -1,4 +1,4 @@
-package com.example.chama.ui.components
+package com.example.chama.ui.components.presencas
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable

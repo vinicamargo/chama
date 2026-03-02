@@ -40,7 +40,7 @@ class MainViewModel(
     private val vendedorDao: VendedorDao,
     private val rifaDao: RifaDao
 ) : ViewModel() {
-    val diaSelecionado = MutableStateFlow(LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).toString())
+    val diaSelecionado = MutableStateFlow(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)).toString())
     val diasComChamada: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 

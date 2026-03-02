@@ -1,6 +1,5 @@
 package com.example.chama.ui.screens
 
-import android.widget.Space
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -28,10 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
 import com.example.chama.ui.MainViewModel
-import com.example.chama.ui.components.ConfirmacaoBottomCard
-import com.example.chama.ui.components.CrismandoCard
-import com.example.chama.ui.components.SeletorDeFiltroData
-import com.example.chama.ui.components.SeletorDeFiltroPresencaEAcoes
+import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
+import com.example.chama.ui.components.presencas.CrismandoCard
+import com.example.chama.ui.components.presencas.SeletorDeFiltroData
+import com.example.chama.ui.components.presencas.SeletorDeFiltroPresencaEAcoes
 
 @Composable
 fun TelaListasPresencas(viewModel: MainViewModel) {
