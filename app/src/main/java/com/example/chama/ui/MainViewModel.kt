@@ -147,6 +147,24 @@ class MainViewModel(
     var rifaSelecionada = mutableStateOf<Rifa?>(null)
         private set
 
+    fun registrarCrismando(crismando: Crismando){
+        viewModelScope.launch(Dispatchers.IO) {
+            crismandoDao.inserir(crismando)
+            vendedorDao.inserirVendedor(Vendedor(crismando.crismandoId, TipoVendedor.CRISMANDO))
+
+            val todosDiasCrisma = diasComChamada.value
+
+            val listaPresencaInicial = todosDiasCrisma.map { data ->
+                Presenca(
+                    crismandoId = crismando.crismandoId,
+                    data = data,
+                    estaPresente = false
+                )
+            }
+            presencaDao.gerarListaPresenca(listaPresencaInicial)
+        }
+    }
+
     fun alterarFiltroNome(novoTexto: String) {
         filtroNomeSelecionado.value = novoTexto
         crismandoSelecionado.value = null
