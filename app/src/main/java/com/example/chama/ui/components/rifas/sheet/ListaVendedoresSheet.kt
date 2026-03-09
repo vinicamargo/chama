@@ -1,4 +1,4 @@
-package com.example.chama.ui.components
+package com.example.chama.ui.components.rifas.sheet
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,8 +24,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.chama.data.model.PessoaVendedora
 import com.example.chama.ui.MainViewModel
@@ -42,8 +39,6 @@ fun ListaVendedoresSheet(
 
     var showDialog by remember { mutableStateOf(false) }
     var vendedorSelecionadoParaConfirmar by remember { mutableStateOf<PessoaVendedora?>(null) }
-
-    var textoDialog by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp)
@@ -78,7 +73,7 @@ fun ListaVendedoresSheet(
                 ) {
                     Text(
                         v.nome,
-                        modifier = Modifier.padding(vertical = 8.dp).padding(start = 12.dp)
+                        modifier = Modifier.padding(vertical = 12.dp).padding(start = 12.dp)
                     )
                 }
             }
