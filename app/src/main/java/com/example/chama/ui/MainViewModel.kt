@@ -172,7 +172,7 @@ class MainViewModel(
         }
     }
 
-    fun exportarParaCSV(): String {
+    fun exportarPresencasCSV(): String {
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
         val crismandos = listaCrismandosOriginal.value
@@ -321,5 +321,27 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO){
             rifaDao.atualizarPagamentoBloco(rifa.bloco, !rifa.estaPaga)
         }
+    }
+
+    fun exportarRifasCSV(): String {
+
+        val rifas = listaRifas.value
+        val nomesVendedores = mapaNomeVendedores.value
+
+        val blocosAgrupados = rifas.groupBy { it.bloco }
+
+        val csv = StringBuilder()
+        csv.append("\uFEFF")
+        csv.append("Bloco, Range Rifas, Vendedor, Status Pagamento\n")
+
+        blocosAgrupados.toSortedMap().forEach { (numBloco, rifasDoBloco) ->
+            val primeiro = rifasDoBloco.first()
+            val rangeRifas = "${primeiro.numero}-${primeiro.numero + 9}"
+            val nome = nomesVendedores[primeiro.vendedorId] ?: "Sem vendedor"
+            val statusPgto = if (primeiro.estaPaga) "Pago" else "Pendente"
+            csv.append("$numBloco,$rangeRifas,$nome,$statusPgto\n")
+        }
+
+        return csv.toString()
     }
 }

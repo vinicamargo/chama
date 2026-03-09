@@ -111,7 +111,6 @@ fun RifaCard(
                     )
 
                     Spacer(modifier = Modifier.weight(1f))
-
                 }
                 if (isBlocoSelecionado) {
 

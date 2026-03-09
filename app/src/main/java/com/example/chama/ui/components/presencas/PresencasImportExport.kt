@@ -61,7 +61,7 @@ fun PresencasImportExport(viewModel: MainViewModel){
     FilledTonalIconButton(
         onClick = {
             viewModel.viewModelScope.launch(Dispatchers.IO) {
-                val dadosCsv = viewModel.exportarParaCSV()
+                val dadosCsv = viewModel.exportarPresencasCSV()
 
                 val file = File(context.cacheDir, "relatorio_presenca.csv")
                 file.writeText(dadosCsv, charset = Charsets.UTF_8)

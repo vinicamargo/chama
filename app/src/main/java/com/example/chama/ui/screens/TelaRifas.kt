@@ -1,5 +1,6 @@
 package com.example.chama.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,13 +42,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import androidx.lifecycle.viewModelScope
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.rifas.sheet.ListaVendedoresSheet
 import com.example.chama.ui.components.rifas.sheet.MenuSheet
 import com.example.chama.ui.components.rifas.RifaCard
 import com.example.chama.utils.TipoVendedor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,12 +79,13 @@ fun TelaRifas(
     var shouldShowRemovalDialog by remember { mutableStateOf(false) }
     var shouldShowAlternarPagamentoDialog by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
 
     Scaffold(
         floatingActionButton = {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (fabExpandido) {
                     SmallFloatingActionButton(
@@ -97,18 +107,41 @@ fun TelaRifas(
                         }
                     }
 
-                    // TODO: Implementar export de rifas
-//                    SmallFloatingActionButton(
-//                        onClick = {
-//                            fabExpandido = false
-//                            /* sua ação aqui */
-//                        },
-//                        shape = RectangleShape,
-//                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-//                        modifier = Modifier.offset(x = (-16).dp)
-//                    ) {
-//                        Icon(Icons.Default.Share, contentDescription = null)
-//                    }
+                    SmallFloatingActionButton(
+                        onClick = {
+                            viewModel.viewModelScope.launch(Dispatchers.IO) {
+                                val dadosCsv = viewModel.exportarRifasCSV()
+
+                                val file = File(context.cacheDir, "relatorio_rifas.csv")
+                                file.writeText(dadosCsv, charset = Charsets.UTF_8)
+
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.provider",
+                                    file
+                                )
+
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/csv"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Exportar Rifas"))
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.offset(x = (-4).dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null)
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text("Exportar")
+                        }
+                    }
                 }
 
                 FloatingActionButton(
