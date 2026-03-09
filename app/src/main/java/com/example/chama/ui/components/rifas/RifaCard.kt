@@ -59,6 +59,19 @@ fun RifaCard(
 
         val nomeVendedor = mapaNomeVendedores[primeiraRifaBloco.vendedorId]
 
+        val nomeVendedorText = nomeVendedor?.takeIf { it.isNotEmpty() }?.let { nome ->
+            val nomes = nome.split(" ")
+            val tresPrimeiros = nomes.take(3)
+
+            val resultado = if (tresPrimeiros.size == 3 && tresPrimeiros.last().length <= 2) {
+                tresPrimeiros.dropLast(1)
+            } else {
+                tresPrimeiros
+            }
+
+            "Vendedor(a): ${resultado.joinToString(" ")}"
+        } ?: "Sem vendedor vinculado"
+
         Row(
             verticalAlignment = Alignment.CenterVertically
         ){
@@ -91,8 +104,7 @@ fun RifaCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = nomeVendedor?.takeIf { it.isNotEmpty() }?.
-                        let { "Vendedor(a): ${it.split(" ").take(3).joinToString(" ")}" } ?: "Sem vendedor vinculado",
+                        text = nomeVendedorText,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 14.sp
