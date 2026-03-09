@@ -24,13 +24,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.chama.data.model.PessoaVendedora
 import com.example.chama.ui.MainViewModel
 
 @Composable
 fun ListaVendedoresSheet(
     viewModel: MainViewModel,
+    bloco: Int,
     onVendedorSelecionado: (Long?) -> Unit
 ){
 
@@ -40,9 +43,20 @@ fun ListaVendedoresSheet(
     var showDialog by remember { mutableStateOf(false) }
     var vendedorSelecionadoParaConfirmar by remember { mutableStateOf<PessoaVendedora?>(null) }
 
+    val ultimaRifa = bloco * 10
+    val sheetTitle = "Alterar vendedor do bloco $bloco\n(rifas ${ultimaRifa-9}-${ultimaRifa})"
+
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp)
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
     ){
+        Text(
+            text = sheetTitle,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 8.dp).fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            fontSize = 18.sp
+        )
+
         OutlinedTextField(
             value = textoBusca,
             onValueChange = { viewModel.alterarFiltroNome(it) },

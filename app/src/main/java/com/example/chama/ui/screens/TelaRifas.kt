@@ -42,7 +42,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,7 +72,7 @@ fun TelaRifas(
     var expandedTipoVendedor by remember { mutableStateOf(false) }
     var tipoSelecionado by remember { mutableStateOf(TipoVendedor.COLABORADOR)}
 
-    var showSheet by remember { mutableStateOf(false) }
+    var showAcoesSheet by remember { mutableStateOf(false) }
     var conteudoSheet by remember { mutableStateOf(TipoConteudoSheet.ACOES) }
 
     var shouldShowRemovalDialog by remember { mutableStateOf(false) }
@@ -180,7 +179,7 @@ fun TelaRifas(
                         primeiraRifaBloco = primeiraRifaBloco,
                         isBlocoSelecionado = rifaSelecionada?.bloco == primeiraRifaBloco.bloco,
                         onClick = { viewModel.selecionarRifa(primeiraRifaBloco) },
-                        onAlterar = { showSheet = true }
+                        onAlterar = { showAcoesSheet = true }
                     )
                 }
             }
@@ -269,9 +268,9 @@ fun TelaRifas(
             )
         }
 
-        if (showSheet) {
+        if (showAcoesSheet) {
             ModalBottomSheet(onDismissRequest = {
-                showSheet = false
+                showAcoesSheet = false
                 conteudoSheet = TipoConteudoSheet.ACOES
                 viewModel.alterarFiltroNome("")
             }) {
@@ -289,6 +288,7 @@ fun TelaRifas(
                         rifaSelecionada?.let {rifa ->
                             ListaVendedoresSheet(
                                 viewModel = viewModel,
+                                bloco = rifa.bloco,
                                 onVendedorSelecionado = { v ->
                                     v?.let {
                                         viewModel.vincularVendedorAoBloco(v, rifa.bloco)
@@ -297,7 +297,7 @@ fun TelaRifas(
                                     }
                                     viewModel.selecionarRifa(null)
                                     conteudoSheet = TipoConteudoSheet.ACOES
-                                    showSheet = false
+                                    showAcoesSheet = false
                                     viewModel.alterarFiltroNome("")
                                 })
                         }
@@ -312,7 +312,7 @@ fun TelaRifas(
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.desvincularVendedorDoBloco(rifaSelecionada?.bloco ?: 0)
-                        shouldShowRemovalDialog = false; showSheet = false; viewModel.selecionarRifa(null)
+                        shouldShowRemovalDialog = false; showAcoesSheet = false; viewModel.selecionarRifa(null)
                     }) {
                         Text("Confirmar", color = MaterialTheme.colorScheme.primary)
                     }
@@ -345,7 +345,7 @@ fun TelaRifas(
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.alternarPagamentoRifa(rifaSelecionada!!)
-                        shouldShowAlternarPagamentoDialog = false; showSheet = false; viewModel.selecionarRifa(null)
+                        shouldShowAlternarPagamentoDialog = false; showAcoesSheet = false; viewModel.selecionarRifa(null)
                     }) {
                         Text("Confirmar", color = MaterialTheme.colorScheme.primary)
                     }
