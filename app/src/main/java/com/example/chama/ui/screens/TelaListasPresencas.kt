@@ -7,6 +7,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
@@ -51,6 +53,7 @@ import com.example.chama.data.entity.Crismando
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
+import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
 import com.example.chama.ui.components.presencas.SeletorDeFiltroData
 import com.example.chama.ui.components.presencas.SeletorDeFiltroPresencaEAcoes
 import kotlin.random.Random
@@ -76,11 +79,12 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
         estaPresente
     }
 
+    var crismandoDetalhes by remember { mutableStateOf<Crismando?>(null) }
+
     Scaffold(
         floatingActionButton = {
-            // Oculta o FAB inteiro quando um crismando é selecionado (bottom card visível)
             AnimatedVisibility(
-                visible = crismandoSelecionado == null,
+                visible = crismandoSelecionado == null && crismandoDetalhes == null,
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut()
             ) {
@@ -131,6 +135,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // Camada 1: Conteúdo Principal da Tela
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -182,6 +187,10 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             onClick = {
                                 viewModel.selecionarCrismando(crismando)
                                 fabExpandido = false
+                            },
+                            onInfoClick = {
+                                crismandoDetalhes = crismando
+                                fabExpandido = false
                             }
                         )
                     }
@@ -206,6 +215,26 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     },
                     onCancelar = { viewModel.selecionarCrismando(null) }
                 )
+            }
+
+            AnimatedVisibility(
+                visible = crismandoDetalhes != null,
+                enter = scaleIn(initialScale = 0.85f) + fadeIn(),
+                exit = scaleOut(targetScale = 0.85f) + fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                crismandoDetalhes?.let { crismando ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.6f))
+                    ) {
+                        DetalhesCrismandoExpandido(
+                            crismando = crismando,
+                            onFechar = { crismandoDetalhes = null }
+                        )
+                    }
+                }
             }
         }
 
