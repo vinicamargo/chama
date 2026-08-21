@@ -1,5 +1,6 @@
 package com.example.chama.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -80,6 +81,13 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     }
 
     var crismandoDetalhes by remember { mutableStateOf<Crismando?>(null) }
+
+    BackHandler(enabled = crismandoDetalhes != null || crismandoSelecionado != null) {
+        when {
+            crismandoDetalhes != null -> crismandoDetalhes = null
+            crismandoSelecionado != null -> viewModel.selecionarCrismando(null)
+        }
+    }
 
     Scaffold(
         floatingActionButton = {

@@ -68,29 +68,36 @@ fun CrismandoCard(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar / Foto do Crismando
+            // Avatar / Foto do Crismando (agora clicável)
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(
+                        if (onInfoClick != null) {
+                            Modifier.clickable { onInfoClick() }
+                        } else {
+                            Modifier
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                 if (!crismando.fotoUrl.isNullOrBlank()) {
-                     AsyncImage(
-                         model = crismando.fotoUrl,
-                         contentDescription = "Foto de ${crismando.nome}",
-                         modifier = Modifier.fillMaxSize(),
-                         contentScale = ContentScale.Crop
-                     )
-                 } else {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(24.dp)
-                )
-                 }
+                if (!crismando.fotoUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = crismando.fotoUrl,
+                        contentDescription = "Foto de ${crismando.nome}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -103,20 +110,6 @@ fun CrismandoCard(
                 else
                     MaterialTheme.typography.bodyLarge
             )
-
-            if (onInfoClick != null) {
-                IconButton(
-                    onClick = onInfoClick,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = "Mais informações de ${crismando.nome}",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
 
             Icon(
                 imageVector = Icons.Default.CheckCircle,
