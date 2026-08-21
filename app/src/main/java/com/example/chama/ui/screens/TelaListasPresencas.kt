@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +60,11 @@ import com.example.chama.ui.components.presencas.CrismandoCard
 import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
 import com.example.chama.ui.components.presencas.SeletorDeFiltroData
 import com.example.chama.ui.components.presencas.SeletorDeFiltroPresencaEAcoes
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.example.chama.utils.DataVisualTransformation
 import kotlin.random.Random
 
 @Composable
@@ -72,6 +80,18 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
 
     var showNovoCrismandoDialog by remember { mutableStateOf(false) }
     var nomeNovoCrismando by remember { mutableStateOf("") }
+    var dataNascNovoCrismando by remember { mutableStateOf("") }
+    var telefoneNovoCrismando by remember { mutableStateOf("") }
+    var responsavelNovoCrismando by remember { mutableStateOf("") }
+    var telResponsavelNovoCrismando by remember { mutableStateOf("") }
+
+    fun limparCamposCadastro() {
+        nomeNovoCrismando = ""
+        dataNascNovoCrismando = ""
+        telefoneNovoCrismando = ""
+        responsavelNovoCrismando = ""
+        telResponsavelNovoCrismando = ""
+    }
 
     val isCrismandoSelecionadoPresente = remember(crismandoSelecionado, presencas) {
         val estaPresente = presencas.find {
@@ -250,19 +270,74 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
             AlertDialog(
                 onDismissRequest = {
                     showNovoCrismandoDialog = false
-                    nomeNovoCrismando = ""
+                    limparCamposCadastro()
                 },
                 title = {
-                    Text(text = "Novo Crismando")
+                    Text(text = "Novo Crismando", fontWeight = FontWeight.Bold)
                 },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Digite o nome do novo crismando que deseja cadastrar:")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         OutlinedTextField(
                             value = nomeNovoCrismando,
                             onValueChange = { nomeNovoCrismando = it },
-                            label = { Text("Nome completo") },
+                            label = { Text("Nome completo *") },
                             singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = dataNascNovoCrismando,
+                            onValueChange = { input ->
+                                dataNascNovoCrismando = input.filter { it.isDigit() }.take(8)
+                            },
+                            label = { Text("Data de Nascimento") },
+                            placeholder = { Text("DD/MM/AAAA") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            visualTransformation = DataVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = telefoneNovoCrismando,
+                            onValueChange = { input ->
+                                telefoneNovoCrismando = input.filter { it.isDigit() }.take(11)
+                            },
+                            label = { Text("Telefone (apenas números)") },
+                            placeholder = { Text("Ex: 11987654321") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), // ⬅️ Teclado telefônico
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        OutlinedTextField(
+                            value = responsavelNovoCrismando,
+                            onValueChange = { responsavelNovoCrismando = it },
+                            label = { Text("Nome do Responsável") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = telResponsavelNovoCrismando,
+                            onValueChange = { input ->
+                                telResponsavelNovoCrismando = input.filter { it.isDigit() }.take(11)
+                            },
+                            label = { Text("Telefone do Responsável") },
+                            placeholder = { Text("Ex: 11987654321") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), // ⬅️ Teclado telefônico
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         )
@@ -272,9 +347,28 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     TextButton(
                         onClick = {
                             if (nomeNovoCrismando.isNotBlank()) {
-                                viewModel.registrarCrismando(Crismando(Random.nextLong(1, Long.MAX_VALUE), nomeNovoCrismando))
+                                val dataIso = runCatching {
+                                    if (dataNascNovoCrismando.length == 8) {
+                                        val dtf = DateTimeFormatter.ofPattern("ddMMyyyy")
+                                        LocalDate.parse(dataNascNovoCrismando, dtf).toString()
+                                    } else {
+                                        null
+                                    }
+                                }.getOrNull()
+
+                                viewModel.registrarCrismando(
+                                    Crismando(
+                                        crismandoId = 0L,
+                                        nome = nomeNovoCrismando.trim(),
+                                        fotoUrl = null,
+                                        dataNascimento = dataIso,
+                                        telefone = telefoneNovoCrismando.trim().ifBlank { null },
+                                        nomeResponsavel = responsavelNovoCrismando.trim().ifBlank { null },
+                                        telefoneResponsavel = telResponsavelNovoCrismando.trim().ifBlank { null }
+                                    )
+                                )
                                 showNovoCrismandoDialog = false
-                                nomeNovoCrismando = ""
+                                limparCamposCadastro()
                             }
                         }
                     ) {
@@ -282,10 +376,12 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = {
-                        showNovoCrismandoDialog = false
-                        nomeNovoCrismando = ""
-                    }) {
+                    TextButton(
+                        onClick = {
+                            showNovoCrismandoDialog = false
+                            limparCamposCadastro()
+                        }
+                    ) {
                         Text("Cancelar")
                     }
                 }

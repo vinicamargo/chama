@@ -75,7 +75,6 @@ fun DetalhesCrismandoExpandido(
                 .padding(20.dp)
                 .verticalScroll(scrollState)
         ) {
-            // Cabeçalho com botão fechar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically

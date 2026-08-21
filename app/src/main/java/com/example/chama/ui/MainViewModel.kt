@@ -170,14 +170,20 @@ class MainViewModel(
 
     fun registrarCrismando(crismando: Crismando) {
         viewModelScope.launch(Dispatchers.IO) {
-            crismandoDao.inserir(crismando)
-            vendedorDao.inserirVendedor(Vendedor(crismando.crismandoId, TipoVendedor.CRISMANDO))
+            val novoId = crismandoDao.inserir(crismando)
+
+            vendedorDao.inserirVendedor(
+                Vendedor(
+                    vendedorId = novoId,
+                    tipo = TipoVendedor.CRISMANDO
+                )
+            )
 
             val todosDiasCrisma = diasComChamada.value
 
             val listaPresencaInicial = todosDiasCrisma.map { data ->
                 Presenca(
-                    crismandoId = crismando.crismandoId,
+                    crismandoId = novoId,
                     data = data,
                     estaPresente = false
                 )
