@@ -74,8 +74,9 @@ abstract class AppDatabase : RoomDatabase() {
                     val linhas = reader.readLines()
                     if (linhas.isEmpty()) return@withContext
 
-                    val colunasCabecalho = linhas[0].split(",", limit = 3)
-                    val datasBruta = colunasCabecalho.getOrNull(2)?.split(",") ?: emptyList()
+                    // Separa em 7 partes para isolar as datas na 7ª coluna (índice 6)
+                    val colunasCabecalho = linhas[0].split(",", limit = 7)
+                    val datasBruta = colunasCabecalho.getOrNull(6)?.split(",") ?: emptyList()
                     val datasLista = datasBruta.map { dataString ->
                         LocalDate.parse(dataString.trim(), formatter).toString()
                     }
@@ -85,15 +86,24 @@ abstract class AppDatabase : RoomDatabase() {
                     val presencaDao = database.presencaDao()
 
                     linhas.drop(1).filter { it.isNotBlank() }.forEach { linha ->
-                        val colunas = linha.split(",", limit = 3)
+                        // Separa os dados de cada crismando em 7 partes
+                        val colunas = linha.split(",", limit = 7)
                         val nome = colunas[0].trim()
                         val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
-                        val presencasBruta = colunas.getOrNull(2)?.split(",") ?: emptyList()
+                        val dataNascimento = colunas.getOrNull(2)?.trim()?.ifBlank { null }
+                        val telefone = colunas.getOrNull(3)?.trim()?.ifBlank { null }
+                        val nomeResponsavel = colunas.getOrNull(4)?.trim()?.ifBlank { null }
+                        val telefoneResponsavel = colunas.getOrNull(5)?.trim()?.ifBlank { null }
+                        val presencasBruta = colunas.getOrNull(6)?.split(",") ?: emptyList()
                         val presencasLista = presencasBruta.map { it.trim() == "O" }
 
                         val crismando = Crismando(
                             nome = nome,
-                            fotoUrl = fotoUrl
+                            fotoUrl = fotoUrl,
+                            dataNascimento = dataNascimento,
+                            telefone = telefone,
+                            nomeResponsavel = nomeResponsavel,
+                            telefoneResponsavel = telefoneResponsavel
                         )
                         val crismandoId = crismandoDao.inserir(crismando)
 
