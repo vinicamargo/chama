@@ -31,12 +31,29 @@ android {
             )
         }
     }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "CHAMA (DEV)")
+        }
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "CHAMA")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
+        resValues = true
     }
 }
 
