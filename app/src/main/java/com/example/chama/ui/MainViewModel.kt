@@ -388,4 +388,13 @@ class MainViewModel(
 
         return csv.toString()
     }
+
+    fun excluirCrismando(crismandoId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            rifaDao.desvincularRifasDoVendedor(crismandoId)
+            presencaDao.deletarPresencasPorCrismando(crismandoId)
+            vendedorDao.deletarVendedorPorId(crismandoId)
+            crismandoDao.deletarCrismando(crismandoId)
+        }
+    }
 }

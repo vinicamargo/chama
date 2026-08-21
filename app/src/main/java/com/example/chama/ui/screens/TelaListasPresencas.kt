@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -51,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
@@ -60,12 +62,9 @@ import com.example.chama.ui.components.presencas.CrismandoCard
 import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
 import com.example.chama.ui.components.presencas.SeletorDeFiltroData
 import com.example.chama.ui.components.presencas.SeletorDeFiltroPresencaEAcoes
+import com.example.chama.utils.DataVisualTransformation
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import com.example.chama.utils.DataVisualTransformation
-import kotlin.random.Random
 
 @Composable
 fun TelaListasPresencas(viewModel: MainViewModel) {
@@ -75,6 +74,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     val crismandoSelecionado by viewModel.crismandoSelecionado
     val filtroPresenca by viewModel.filtroPresencaSelecionado
     val dataFiltrada by viewModel.diaSelecionado.collectAsState()
+    val listaRifas by viewModel.listaRifas.collectAsState()
 
     var fabExpandido by remember { mutableStateOf(false) }
 
@@ -252,6 +252,13 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxSize()
             ) {
                 crismandoDetalhes?.let { crismando ->
+                    val blocos = remember(listaRifas, crismando) {
+                        listaRifas
+                            .filter { it.vendedorId == crismando.crismandoId }
+                            .map { it.bloco }
+                            .distinct()
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -259,7 +266,12 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     ) {
                         DetalhesCrismandoExpandido(
                             crismando = crismando,
-                            onFechar = { crismandoDetalhes = null }
+                            blocosVinculados = blocos,
+                            onFechar = { crismandoDetalhes = null },
+                            onExcluir = { c ->
+                                viewModel.excluirCrismando(c.crismandoId)
+                                crismandoDetalhes = null
+                            }
                         )
                     }
                 }
@@ -313,7 +325,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             label = { Text("Telefone (apenas números)") },
                             placeholder = { Text("Ex: 11987654321") },
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), // ⬅️ Teclado telefônico
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         )
@@ -337,7 +349,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             label = { Text("Telefone do Responsável") },
                             placeholder = { Text("Ex: 11987654321") },
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), // ⬅️ Teclado telefônico
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         )

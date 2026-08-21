@@ -25,4 +25,6 @@ interface RifaDao {
     fun desvincularVendedorDoBloco(numBloco: Int)
     @Query("UPDATE rifas SET estaPaga = :estaPaga WHERE bloco = :bloco")
     fun atualizarPagamentoBloco (bloco: Int, estaPaga: Boolean)
+    @Query("UPDATE rifas SET vendedorId = NULL WHERE vendedorId = :vendedorId")
+    fun desvincularRifasDoVendedor(vendedorId: Long)
 }

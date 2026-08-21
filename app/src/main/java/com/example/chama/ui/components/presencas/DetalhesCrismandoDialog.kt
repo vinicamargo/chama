@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,10 +24,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DividerDefaults
@@ -33,9 +41,17 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,14 +66,18 @@ import com.example.chama.data.entity.Crismando
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DetalhesCrismandoExpandido(
     crismando: Crismando,
+    blocosVinculados: List<Int> = emptyList(), // ⬅️ Lista com os números dos blocos deste crismando
     onFechar: () -> Unit,
+    onExcluir: (Crismando) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier
@@ -75,6 +95,7 @@ fun DetalhesCrismandoExpandido(
                 .padding(20.dp)
                 .verticalScroll(scrollState)
         ) {
+            // Cabeçalho com botão de excluir e fechar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -85,6 +106,7 @@ fun DetalhesCrismandoExpandido(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
+
                 IconButton(onClick = onFechar) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -150,7 +172,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Dados Pessoais (Data de Nascimento & Idade em Realtime)
+            // Seção: Dados Pessoais
             Text(
                 text = "Dados Pessoais",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -228,7 +250,137 @@ fun DetalhesCrismandoExpandido(
                     context.startActivity(intent)
                 }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Seção: Rifas / Blocos Vinculados
+            Text(
+                text = "Rifas Vinculadas",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.ConfirmationNumber,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Text(
+                            text = if (blocosVinculados.isNotEmpty())
+                                "${blocosVinculados.size} bloco(s) em posse"
+                            else
+                                "Nenhum bloco vinculado",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    if (blocosVinculados.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            blocosVinculados.sorted().forEach { bloco ->
+                                val inicio = (bloco - 1) * 10 + 1
+                                val fim = inicio + 9
+                                SuggestionChip(
+                                    onClick = {},
+                                    label = { Text("Bloco $bloco ($inicio-$fim)", style = MaterialTheme.typography.labelSmall) },
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botão Excluir no rodapé
+            OutlinedButton(
+                onClick = { showConfirmarExclusaoDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Excluir Crismando")
+            }
         }
+    }
+
+    // Diálogo de Confirmação de Exclusão com Alerta de Rifas
+    if (showConfirmarExclusaoDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmarExclusaoDialog = false },
+            icon = {
+                Icon(
+                    imageVector = if (blocosVinculados.isNotEmpty()) Icons.Default.WarningAmber else Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Excluir Crismando?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Tem certeza que deseja excluir ${crismando.nome}? Todas as presenças e informações registradas serão apagadas permanentemente."
+                    )
+
+                    if (blocosVinculados.isNotEmpty()) {
+                        Text(
+                            text = "⚠️ ATENÇÃO: Este crismando possui ${blocosVinculados.size} bloco(s) de rifa vinculados (Blocos: ${blocosVinculados.joinToString(", ")}). Ao excluí-lo, esses blocos ficarão desvinculados.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmarExclusaoDialog = false
+                        onExcluir(crismando)
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Excluir Definitivamente", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmarExclusaoDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
