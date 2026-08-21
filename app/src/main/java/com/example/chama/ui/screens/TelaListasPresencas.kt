@@ -1,6 +1,10 @@
 package com.example.chama.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +53,6 @@ import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
 import com.example.chama.ui.components.presencas.SeletorDeFiltroData
 import com.example.chama.ui.components.presencas.SeletorDeFiltroPresencaEAcoes
-import com.example.chama.utils.TipoVendedor
 import kotlin.random.Random
 
 @Composable
@@ -66,7 +69,6 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     var showNovoCrismandoDialog by remember { mutableStateOf(false) }
     var nomeNovoCrismando by remember { mutableStateOf("") }
 
-
     val isCrismandoSelecionadoPresente = remember(crismandoSelecionado, presencas) {
         val estaPresente = presencas.find {
             it.crismandoId == crismandoSelecionado?.crismandoId
@@ -76,64 +78,75 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
 
     Scaffold(
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            // Oculta o FAB inteiro quando um crismando é selecionado (bottom card visível)
+            AnimatedVisibility(
+                visible = crismandoSelecionado == null,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
             ) {
-                if (fabExpandido) {
-                    SmallFloatingActionButton(
-                        onClick = {
-                            showNovoCrismandoDialog = true
-                            fabExpandido = false
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.offset(x = (-4).dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (fabExpandido) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                showNovoCrismandoDialog = true
+                                fabExpandido = false
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.offset(x = (-4).dp)
                         ) {
-                            Icon(Icons.Default.Person, contentDescription = null)
-                            Spacer(modifier = Modifier.padding(4.dp))
-                            Text("Novo crismando")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.Default.Person, contentDescription = null)
+                                Spacer(modifier = Modifier.padding(4.dp))
+                                Text("Novo crismando")
+                            }
                         }
                     }
-                }
 
-                FloatingActionButton(
-                    onClick = { fabExpandido = !fabExpandido },
-                    shape = RoundedCornerShape(12.dp),
-                    containerColor = if (fabExpandido) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .offset(x = (-4).dp)
-                ) {
-                    Icon(
-                        imageVector = if (fabExpandido) Icons.Default.Close else Icons.Default.Add,
-                        contentDescription = "Menu"
-                    )
+                    FloatingActionButton(
+                        onClick = { fabExpandido = !fabExpandido },
+                        shape = RoundedCornerShape(12.dp),
+                        containerColor = if (fabExpandido) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .offset(x = (-4).dp)
+                    ) {
+                        Icon(
+                            imageVector = if (fabExpandido) Icons.Default.Close else Icons.Default.Add,
+                            contentDescription = "Menu"
+                        )
+                    }
                 }
             }
         }
-    ){ innerPadding ->
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding),
-                ){
-            Column(modifier = Modifier
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .padding(top = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally) {
-
+                .padding(innerPadding)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(top = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 SeletorDeFiltroData(
-                    viewModel,
+                    viewModel = viewModel,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 SeletorDeFiltroPresencaEAcoes(
-                    viewModel,
+                    viewModel = viewModel,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -160,13 +173,16 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
 
                 LazyColumn {
                     items(listaCrismandosFiltrada) { crismando ->
-                        val presencaCrismando = presencas.find { it.crismandoId == crismando.crismandoId}?.estaPresente
+                        val presencaCrismando = presencas.find { it.crismandoId == crismando.crismandoId }?.estaPresente
 
                         CrismandoCard(
-                            crismando,
+                            crismando = crismando,
                             estaPresente = presencaCrismando,
                             selecionado = crismando == crismandoSelecionado,
-                            onClick = {viewModel.selecionarCrismando(crismando)}
+                            onClick = {
+                                viewModel.selecionarCrismando(crismando)
+                                fabExpandido = false
+                            }
                         )
                     }
                 }
@@ -200,7 +216,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     nomeNovoCrismando = ""
                 },
                 title = {
-                    Text(text = "Novo Vendedor")
+                    Text(text = "Novo Crismando")
                 },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
