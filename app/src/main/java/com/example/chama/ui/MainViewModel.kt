@@ -40,17 +40,40 @@ class MainViewModel(
     private val vendedorDao: VendedorDao,
     private val rifaDao: RifaDao
 ) : ViewModel() {
-    val diaSelecionado = MutableStateFlow(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)).toString())
+
+    val diaSelecionado = MutableStateFlow("")
+
     val diasComChamada: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    init {
+        viewModelScope.launch {
+            diasComChamada.collect { dias ->
+                if (dias.isNotEmpty()) {
+                    val ultimoDomingo = LocalDate.now()
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
+                        .toString()
+
+                    val diasOrdenados = dias.sorted()
+
+                    if (diaSelecionado.value.isBlank() || diaSelecionado.value !in dias) {
+                        diaSelecionado.value = if (dias.contains(ultimoDomingo)) {
+                            ultimoDomingo
+                        } else {
+                            diasOrdenados.first()
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     var filtroNomeSelecionado = mutableStateOf("")
         private set
 
-
     var filtroPresencaSelecionado = mutableStateOf(FiltroPresenca.TODOS)
         private set
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val presencasDoDia: StateFlow<List<Presenca>> = diaSelecionado
         .flatMapLatest { data ->
@@ -58,9 +81,9 @@ class MainViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-
     val listaCrismandosOriginal: StateFlow<List<Crismando>> = crismandoDao.getAllCrismandos()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val listaCrismandosFiltrada: StateFlow<List<Crismando>> = combine(
         listaCrismandosOriginal,
         snapshotFlow { filtroNomeSelecionado.value },
@@ -86,15 +109,14 @@ class MainViewModel(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     var crismandoSelecionado = mutableStateOf<Crismando?>(null)
         private set
-
 
     val totalPresentes: StateFlow<Int> = combine(
         listaCrismandosOriginal,
         presencasDoDia
-    ){
-        crismandos, presencas ->
+    ) { crismandos, presencas ->
         crismandos.count { c ->
             presencas.any { p -> p.crismandoId == c.crismandoId && p.estaPresente }
         }
@@ -123,7 +145,7 @@ class MainViewModel(
     val listaVendedoresFiltrados: StateFlow<List<PessoaVendedora>> = combine(
         listaVendedores,
         snapshotFlow { filtroNomeSelecionado.value }
-    ){ vendedores, busca ->
+    ) { vendedores, busca ->
         if (busca.isBlank()) {
             vendedores
         } else {
@@ -133,7 +155,6 @@ class MainViewModel(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
 
     val mapaNomeVendedores: StateFlow<Map<Long, String>> = listaVendedores
         .map { lista ->
@@ -147,7 +168,7 @@ class MainViewModel(
     var rifaSelecionada = mutableStateOf<Rifa?>(null)
         private set
 
-    fun registrarCrismando(crismando: Crismando){
+    fun registrarCrismando(crismando: Crismando) {
         viewModelScope.launch(Dispatchers.IO) {
             crismandoDao.inserir(crismando)
             vendedorDao.inserirVendedor(Vendedor(crismando.crismandoId, TipoVendedor.CRISMANDO))
@@ -212,7 +233,7 @@ class MainViewModel(
             datas.forEach { data ->
                 var status = ""
 
-                if(LocalDate.parse(data) <= LocalDate.now()){
+                if (LocalDate.parse(data) <= LocalDate.now()) {
                     val registro = todasPresencas.find {
                         it.crismandoId == crismando.crismandoId && it.data == data
                     }
@@ -227,7 +248,7 @@ class MainViewModel(
         return csv.toString()
     }
 
-    fun limparDatabase(){
+    fun limparDatabase() {
         presencaDao.deleteAllPresencas()
         vendedorDao.deletarVendedoresCRISMANDO()
         crismandoDao.deleteAllCrismandos()
@@ -267,12 +288,12 @@ class MainViewModel(
                             Vendedor(crismando.crismandoId, TipoVendedor.CRISMANDO)
                         )
 
-                        for (i in datasLista.indices){
+                        for (i in datasLista.indices) {
                             presencas.add(
                                 Presenca(
-                                crismandoId = crismando.crismandoId,
-                                datasLista[i],
-                                presencasLista[i]
+                                    crismandoId = crismando.crismandoId,
+                                    datasLista[i],
+                                    presencasLista[i]
                                 )
                             )
                         }
@@ -287,9 +308,9 @@ class MainViewModel(
     }
 
     fun registrarVendedor(nome: String, tipoVendedor: TipoVendedor) {
-        viewModelScope.launch(Dispatchers.IO){
+        viewModelScope.launch(Dispatchers.IO) {
             val vendedor = Vendedor(
-                vendedorId = Random.nextLong(1, Long.MAX_VALUE), // ID Único
+                vendedorId = Random.nextLong(1, Long.MAX_VALUE),
                 tipo = tipoVendedor,
                 nomeExterno = nome
             )
@@ -318,7 +339,7 @@ class MainViewModel(
         }
     }
 
-    fun selecionarRifa(rifa: Rifa?){
+    fun selecionarRifa(rifa: Rifa?) {
         rifaSelecionada.value = if (rifaSelecionada.value?.numero == rifa?.numero)
             null else rifa
     }
@@ -335,14 +356,13 @@ class MainViewModel(
         }
     }
 
-    fun alternarPagamentoRifa(rifa: Rifa){
-        viewModelScope.launch(Dispatchers.IO){
+    fun alternarPagamentoRifa(rifa: Rifa) {
+        viewModelScope.launch(Dispatchers.IO) {
             rifaDao.atualizarPagamentoBloco(rifa.bloco, !rifa.estaPaga)
         }
     }
 
     fun exportarRifasCSV(): String {
-
         val rifas = listaRifas.value
         val nomesVendedores = mapaNomeVendedores.value
 

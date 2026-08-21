@@ -17,7 +17,7 @@ interface CrismandoDao {
     fun getAllCrismandosStatic(): List<Crismando>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun inserir(crismando: Crismando)
+    fun inserir(crismando: Crismando): Long
 
     @Query("DELETE FROM crismandos")
     fun deleteAllCrismandos()
