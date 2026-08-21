@@ -28,8 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.chama.data.entity.Crismando
 
 @Composable
@@ -74,21 +76,21 @@ fun CrismandoCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                // if (!crismando.fotoUri.isNullOrBlank()) {
-                //     AsyncImage(
-                //         model = crismando.fotoUri,
-                //         contentDescription = "Foto de ${crismando.nome}",
-                //         modifier = Modifier.fillMaxSize(),
-                //         contentScale = ContentScale.Crop
-                //     )
-                // } else {
+                 if (!crismando.fotoUrl.isNullOrBlank()) {
+                     AsyncImage(
+                         model = crismando.fotoUrl,
+                         contentDescription = "Foto de ${crismando.nome}",
+                         modifier = Modifier.fillMaxSize(),
+                         contentScale = ContentScale.Crop
+                     )
+                 } else {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.size(24.dp)
                 )
-                // }
+                 }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

@@ -18,6 +18,7 @@ import com.example.chama.utils.TipoVendedor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -65,15 +66,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private suspend fun popularBancoDev(context: Context, database: AppDatabase) {
+        private suspend fun popularBancoDev(context: Context, database: AppDatabase) = withContext(Dispatchers.IO) {
             try {
                 context.assets.open("mock_dados.csv").use { inputStream ->
                     val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
                     val reader = inputStream.bufferedReader()
                     val linhas = reader.readLines()
-                    if (linhas.isEmpty()) return
+                    if (linhas.isEmpty()) return@withContext
 
-                    val datasBruta = linhas[0].split(",", limit = 2)[1].split(",")
+                    val colunasCabecalho = linhas[0].split(",", limit = 3)
+                    val datasBruta = colunasCabecalho.getOrNull(2)?.split(",") ?: emptyList()
                     val datasLista = datasBruta.map { dataString ->
                         LocalDate.parse(dataString.trim(), formatter).toString()
                     }
@@ -83,12 +85,16 @@ abstract class AppDatabase : RoomDatabase() {
                     val presencaDao = database.presencaDao()
 
                     linhas.drop(1).filter { it.isNotBlank() }.forEach { linha ->
-                        val colunas = linha.split(",", limit = 2)
+                        val colunas = linha.split(",", limit = 3)
                         val nome = colunas[0].trim()
-                        val presencasBruta = colunas.getOrNull(1)?.split(",") ?: emptyList()
+                        val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
+                        val presencasBruta = colunas.getOrNull(2)?.split(",") ?: emptyList()
                         val presencasLista = presencasBruta.map { it.trim() == "O" }
 
-                        val crismando = Crismando(nome = nome)
+                        val crismando = Crismando(
+                            nome = nome,
+                            fotoUrl = fotoUrl
+                        )
                         val crismandoId = crismandoDao.inserir(crismando)
 
                         vendedorDao.inserirVendedor(

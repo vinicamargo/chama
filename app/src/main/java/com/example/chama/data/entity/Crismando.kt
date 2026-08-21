@@ -8,5 +8,6 @@ import kotlin.random.Random
 data class Crismando (
     @PrimaryKey(autoGenerate = true)
     val crismandoId: Long = Random.nextLong(1, Long.MAX_VALUE),
-    val nome: String
+    val nome: String,
+    val fotoUrl: String? = null
 )
