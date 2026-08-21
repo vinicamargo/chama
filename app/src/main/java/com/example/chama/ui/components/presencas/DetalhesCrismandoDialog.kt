@@ -40,6 +40,7 @@ import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
@@ -70,7 +71,11 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DetalhesCrismandoExpandido(
     crismando: Crismando,
-    blocosVinculados: List<Int> = emptyList(), // ⬅️ Lista com os números dos blocos deste crismando
+    blocosVinculados: List<Int> = emptyList(),
+    totalFaltas: Int = 0,
+    totalPresentes: Int = 0,
+    totalEncontrosRealizados: Int = 0,
+    porcentagemPresenca: Float = 100f,
     onFechar: () -> Unit,
     onExcluir: (Crismando) -> Unit,
     modifier: Modifier = Modifier
@@ -107,6 +112,14 @@ fun DetalhesCrismandoExpandido(
                     modifier = Modifier.weight(1f)
                 )
 
+                IconButton(onClick = { showConfirmarExclusaoDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Excluir Crismando",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+
                 IconButton(onClick = onFechar) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -117,13 +130,14 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Avatar Centralizado + Nome + ID
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(150.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
@@ -162,7 +176,91 @@ fun DetalhesCrismandoExpandido(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Seção: Frequência e Presença até o momento
+            Text(
+                text = "Frequência dos Encontros",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Presença Geral",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "%.0f%%".format(porcentagemPresenca),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (porcentagemPresenca >= 75f) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Presente",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$totalPresentes",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Faltas",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$totalFaltas",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LinearProgressIndicator(
+                        progress = { (porcentagemPresenca / 100f).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = Color(0xFF2E7D32),
+                        trackColor = Color(0xFFC62828).copy(alpha = 0.7f),
+                        drawStopIndicator = {}
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             HorizontalDivider(
                 modifier = Modifier.fillMaxWidth(),
@@ -328,7 +426,7 @@ fun DetalhesCrismandoExpandido(
         }
     }
 
-    // Diálogo de Confirmação de Exclusão com Alerta de Rifas
+    // Diálogo de Confirmação de Exclusão
     if (showConfirmarExclusaoDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmarExclusaoDialog = false },

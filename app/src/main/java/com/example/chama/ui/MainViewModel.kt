@@ -217,6 +217,9 @@ class MainViewModel(
         }
     }
 
+    val todasPresencas: StateFlow<List<Presenca>> = presencaDao.buscarTodasAsPresencas()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun exportarPresencasCSV(): String {
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 

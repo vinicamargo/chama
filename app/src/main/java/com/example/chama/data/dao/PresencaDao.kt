@@ -14,6 +14,9 @@ interface PresencaDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun gerarListaPresenca(presencas: List<Presenca>)
 
+    @Query("SELECT * FROM presencas")
+    fun buscarTodasAsPresencas(): Flow<List<Presenca>>
+
     @Query("SELECT * FROM presencas WHERE data = :data")
     fun buscarPresencasPorData(data: String): Flow<List<Presenca>>
 

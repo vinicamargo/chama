@@ -75,6 +75,8 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     val filtroPresenca by viewModel.filtroPresencaSelecionado
     val dataFiltrada by viewModel.diaSelecionado.collectAsState()
     val listaRifas by viewModel.listaRifas.collectAsState()
+    val diasComChamada by viewModel.diasComChamada.collectAsState()
+    val todasPresencas by viewModel.todasPresencas.collectAsState()
 
     var fabExpandido by remember { mutableStateOf(false) }
 
@@ -259,6 +261,20 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             .distinct()
                     }
 
+                    val hoje = LocalDate.now()
+                    val datasAteHoje = remember(diasComChamada) {
+                        diasComChamada//.filter { runCatching { LocalDate.parse(it) <= hoje }.getOrDefault(false) }
+                    }
+
+                    val presencasDoCrismando = remember(todasPresencas, crismando, datasAteHoje) {
+                        todasPresencas.filter { it.crismandoId == crismando.crismandoId && it.data in datasAteHoje }
+                    }
+
+                    val totalEncontros = datasAteHoje.size
+                    val totalPresentes = presencasDoCrismando.count { it.estaPresente }
+                    val totalFaltas = totalEncontros - totalPresentes
+                    val porcentagem = if (totalEncontros > 0) (totalPresentes.toFloat() / totalEncontros) * 100f else 100f
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -267,6 +283,10 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                         DetalhesCrismandoExpandido(
                             crismando = crismando,
                             blocosVinculados = blocos,
+                            totalFaltas = totalFaltas,
+                            totalPresentes = totalPresentes,
+                            totalEncontrosRealizados = totalEncontros,
+                            porcentagemPresenca = porcentagem,
                             onFechar = { crismandoDetalhes = null },
                             onExcluir = { c ->
                                 viewModel.excluirCrismando(c.crismandoId)
