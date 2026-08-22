@@ -291,6 +291,10 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             onExcluir = { c ->
                                 viewModel.excluirCrismando(c.crismandoId)
                                 crismandoDetalhes = null
+                            },
+                            onAtualizar = { crismandoAtualizado ->
+                                viewModel.atualizarCrismando(crismandoAtualizado)
+                                crismandoDetalhes = crismandoAtualizado
                             }
                         )
                     }

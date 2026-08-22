@@ -392,6 +392,12 @@ class MainViewModel(
         return csv.toString()
     }
 
+    fun atualizarCrismando(crismando: Crismando) {
+        viewModelScope.launch(Dispatchers.IO) {
+            crismandoDao.atualizar(crismando)
+        }
+    }
+
     fun excluirCrismando(crismandoId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             rifaDao.desvincularRifasDoVendedor(crismandoId)

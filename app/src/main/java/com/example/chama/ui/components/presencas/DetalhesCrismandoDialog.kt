@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cake
@@ -26,12 +27,14 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,6 +47,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
@@ -61,9 +65,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.chama.data.entity.Crismando
+import com.example.chama.utils.DataVisualTransformation
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -78,11 +84,27 @@ fun DetalhesCrismandoExpandido(
     porcentagemPresenca: Float = 100f,
     onFechar: () -> Unit,
     onExcluir: (Crismando) -> Unit,
+    onAtualizar: (Crismando) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
+    var showEditarDialog by remember { mutableStateOf(false) }
+
+    // Estados para o diálogo de edição (inicializados com os dados atuais)
+    var nomeEdit by remember(crismando) { mutableStateOf(crismando.nome) }
+    var dataNascEdit by remember(crismando) {
+        val ddmmyyyy = runCatching {
+            crismando.dataNascimento?.let {
+                LocalDate.parse(it).format(DateTimeFormatter.ofPattern("ddMMyyyy"))
+            }
+        }.getOrNull() ?: ""
+        mutableStateOf(ddmmyyyy)
+    }
+    var telEdit by remember(crismando) { mutableStateOf(crismando.telefone ?: "") }
+    var respEdit by remember(crismando) { mutableStateOf(crismando.nomeResponsavel ?: "") }
+    var telRespEdit by remember(crismando) { mutableStateOf(crismando.telefoneResponsavel ?: "") }
 
     Card(
         modifier = modifier
@@ -100,7 +122,7 @@ fun DetalhesCrismandoExpandido(
                 .padding(20.dp)
                 .verticalScroll(scrollState)
         ) {
-            // Cabeçalho com botão de excluir e fechar
+            // Cabeçalho com ações: Editar, Excluir e Fechar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -112,11 +134,11 @@ fun DetalhesCrismandoExpandido(
                     modifier = Modifier.weight(1f)
                 )
 
-                IconButton(onClick = { showConfirmarExclusaoDialog = true }) {
+                IconButton(onClick = { showEditarDialog = true }) {
                     Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Excluir Crismando",
-                        tint = MaterialTheme.colorScheme.error
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Editar Crismando",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -178,7 +200,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Seção: Frequência e Presença até o momento
+            // Seção: Frequência
             Text(
                 text = "Frequência dos Encontros",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -240,6 +262,19 @@ fun DetalhesCrismandoExpandido(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.error
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Total",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$totalEncontrosRealizados",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -351,7 +386,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Rifas / Blocos Vinculados
+            // Seção: Rifas Vinculadas
             Text(
                 text = "Rifas Vinculadas",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -410,20 +445,147 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botão Excluir no rodapé
-            OutlinedButton(
-                onClick = { showConfirmarExclusaoDialog = true },
+            // Botão Editar + Excluir no rodapé
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                ),
-                shape = RoundedCornerShape(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Excluir Crismando")
+                OutlinedButton(
+                    onClick = { showEditarDialog = true },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Editar")
+                }
+
+                OutlinedButton(
+                    onClick = { showConfirmarExclusaoDialog = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Excluir")
+                }
             }
         }
+    }
+
+    // Diálogo de Edição de Dados do Crismando
+    if (showEditarDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditarDialog = false },
+            title = {
+                Text(text = "Editar Crismando", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = nomeEdit,
+                        onValueChange = { nomeEdit = it },
+                        label = { Text("Nome completo *") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = dataNascEdit,
+                        onValueChange = { input ->
+                            dataNascEdit = input.filter { it.isDigit() }.take(8)
+                        },
+                        label = { Text("Data de Nascimento") },
+                        placeholder = { Text("DD/MM/AAAA") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        visualTransformation = DataVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = telEdit,
+                        onValueChange = { input ->
+                            telEdit = input.filter { it.isDigit() }.take(11)
+                        },
+                        label = { Text("Telefone (apenas números)") },
+                        placeholder = { Text("Ex: 11987654321") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    OutlinedTextField(
+                        value = respEdit,
+                        onValueChange = { respEdit = it },
+                        label = { Text("Nome do Responsável") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = telRespEdit,
+                        onValueChange = { input ->
+                            telRespEdit = input.filter { it.isDigit() }.take(11)
+                        },
+                        label = { Text("Telefone do Responsável") },
+                        placeholder = { Text("Ex: 11987654321") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (nomeEdit.isNotBlank()) {
+                            val dataIso = runCatching {
+                                if (dataNascEdit.length == 8) {
+                                    val dtf = DateTimeFormatter.ofPattern("ddMMyyyy")
+                                    LocalDate.parse(dataNascEdit, dtf).toString()
+                                } else {
+                                    null
+                                }
+                            }.getOrNull()
+
+                            val crismandoAtualizado = crismando.copy(
+                                nome = nomeEdit.trim(),
+                                dataNascimento = dataIso,
+                                telefone = telEdit.trim().ifBlank { null },
+                                nomeResponsavel = respEdit.trim().ifBlank { null },
+                                telefoneResponsavel = telRespEdit.trim().ifBlank { null }
+                            )
+
+                            onAtualizar(crismandoAtualizado)
+                            showEditarDialog = false
+                        }
+                    }
+                ) {
+                    Text("Salvar Alterações", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditarDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     // Diálogo de Confirmação de Exclusão

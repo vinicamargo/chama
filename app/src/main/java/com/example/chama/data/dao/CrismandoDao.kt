@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.chama.data.entity.Crismando
 import kotlinx.coroutines.flow.Flow
 
@@ -18,6 +19,9 @@ interface CrismandoDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun inserir(crismando: Crismando): Long
+
+    @Update
+    fun atualizar(crismando: Crismando)
 
     @Query("DELETE FROM crismandos WHERE crismandoId = :crismandoId")
     fun deletarCrismando(crismandoId: Long)
