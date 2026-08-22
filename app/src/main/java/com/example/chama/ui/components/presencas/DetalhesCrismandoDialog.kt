@@ -1,8 +1,14 @@
 package com.example.chama.ui.components.presencas
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,16 +30,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -67,9 +74,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import com.canhub.cropper.CropImage
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import com.example.chama.data.entity.Crismando
 import com.example.chama.utils.DataVisualTransformation
+import com.example.chama.utils.criarUriTemporariaCamera
+import com.example.chama.utils.salvarFotoLocal
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -91,8 +107,65 @@ fun DetalhesCrismandoExpandido(
     val scrollState = rememberScrollState()
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
     var showEditarDialog by remember { mutableStateOf(false) }
+    var showOpcoesFotoDialog by remember { mutableStateOf(false) }
 
-    // Estados para o diálogo de edição (inicializados com os dados atuais)
+    // Launcher do PhotoPicker nativo do Android
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let {
+            val caminhoLocal = salvarFotoLocal(context, it, crismando.crismandoId)
+            if (caminhoLocal != null) {
+                onAtualizar(crismando.copy(fotoUrl = caminhoLocal))
+            }
+        }
+    }
+
+    var tempFileCamera by remember { mutableStateOf<File?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { sucesso ->
+        if (sucesso && tempFileCamera != null) {
+            onAtualizar(crismando.copy(fotoUrl = tempFileCamera?.absolutePath))
+        }
+    }
+
+    val cropImageLauncher = rememberLauncherForActivityResult(
+        contract = CropImageContract()
+    ) { result: CropImageView.CropResult ->
+        if (result.isSuccessful) {
+            val uriCortada: Uri? = result.uriContent ?: result.getUriFilePath(context, true)?.let { Uri.parse(it) }
+            uriCortada?.let { uri ->
+                val caminhoLocal = salvarFotoLocal(context, uri, crismando.crismandoId)
+                if (caminhoLocal != null) {
+                    onAtualizar(crismando.copy(fotoUrl = caminhoLocal))
+                }
+            }
+        }
+    }
+
+    fun iniciarRecorte(apenasCamera: Boolean = false, apenasGaleria: Boolean = false) {
+        val cropOptions = CropImageOptions(
+            cropShape = CropImageView.CropShape.OVAL,          // ⬅️ Recorte Redondo
+            fixAspectRatio = true,                            // ⬅️ Proporção 1:1
+            aspectRatioX = 1,
+            aspectRatioY = 1,
+            guidelines = CropImageView.Guidelines.ON,
+            outputCompressFormat = android.graphics.Bitmap.CompressFormat.JPEG,
+            outputCompressQuality = 90,
+            imageSourceIncludeCamera = !apenasGaleria,
+            imageSourceIncludeGallery = !apenasCamera
+        )
+
+        cropImageLauncher.launch(
+            CropImageContractOptions(
+                uri = null,
+                cropImageOptions = cropOptions
+            )
+        )
+    }
+
     var nomeEdit by remember(crismando) { mutableStateOf(crismando.nome) }
     var dataNascEdit by remember(crismando) {
         val ddmmyyyy = runCatching {
@@ -122,7 +195,7 @@ fun DetalhesCrismandoExpandido(
                 .padding(20.dp)
                 .verticalScroll(scrollState)
         ) {
-            // Cabeçalho com ações: Editar, Excluir e Fechar
+            // Cabeçalho com Editar e Fechar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -152,7 +225,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Avatar Centralizado + Nome + ID
+            // Avatar Clicável com badge de Câmera
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -161,7 +234,8 @@ fun DetalhesCrismandoExpandido(
                     modifier = Modifier
                         .size(150.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .clickable { showOpcoesFotoDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (!crismando.fotoUrl.isNullOrBlank()) {
@@ -330,7 +404,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Contato do Crismando
+            // Seção: Contato
             Text(
                 text = "Contato",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -354,7 +428,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Família / Responsável
+            // Seção: Responsável
             Text(
                 text = "Responsável",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -386,7 +460,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Rifas Vinculadas
+            // Seção: Rifas
             Text(
                 text = "Rifas Vinculadas",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -476,7 +550,131 @@ fun DetalhesCrismandoExpandido(
         }
     }
 
-    // Diálogo de Edição de Dados do Crismando
+    // Diálogo de Opções de Foto (Escolher ou Remover)
+    if (showOpcoesFotoDialog) {
+        Dialog(onDismissRequest = { showOpcoesFotoDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .padding(vertical = 16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Foto de Perfil",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Opção 1: Tirar Foto com a Câmera
+                    TextButton(
+                        onClick = {
+                            showOpcoesFotoDialog = false
+                            iniciarRecorte(apenasCamera = true)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Tirar Foto",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Opção 2: Escolher da Galeria
+                    TextButton(
+                        onClick = {
+                            showOpcoesFotoDialog = false
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Escolher da Galeria",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Opção 3: Remover Foto (se existir)
+                    if (!crismando.fotoUrl.isNullOrBlank()) {
+                        TextButton(
+                            onClick = {
+                                showOpcoesFotoDialog = false
+                                runCatching {
+                                    val file = File(crismando.fotoUrl)
+                                    if (file.exists()) file.delete()
+                                }
+                                onAtualizar(crismando.copy(fotoUrl = null))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Text(
+                                    text = "Remover Foto",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    TextButton(
+                        onClick = { showOpcoesFotoDialog = false },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Cancelar")
+                    }
+                }
+            }
+        }
+    }
+
+    // Diálogo de Edição de Dados
     if (showEditarDialog) {
         AlertDialog(
             onDismissRequest = { showEditarDialog = false },
