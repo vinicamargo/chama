@@ -8,18 +8,24 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -37,20 +43,24 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
 import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.components.rifas.DialogConfirmarExclusaoBlocosEmUso
+import com.example.chama.ui.components.rifas.DialogExcluirUltimosBlocos
+import com.example.chama.ui.components.rifas.DialogInserirBlocosEmLote
+import com.example.chama.ui.components.rifas.RifaCard
 import com.example.chama.ui.components.rifas.sheet.ListaVendedoresSheet
 import com.example.chama.ui.components.rifas.sheet.MenuSheet
-import com.example.chama.ui.components.rifas.RifaCard
 import com.example.chama.utils.TipoVendedor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,8 +70,7 @@ import java.io.File
 @Composable
 fun TelaRifas(
     viewModel: MainViewModel
-)
-{
+) {
     val listaRifas by viewModel.listaRifas.collectAsState()
     val rifaSelecionada by viewModel.rifaSelecionada
 
@@ -70,13 +79,20 @@ fun TelaRifas(
     var showNovoVendedorDialog by remember { mutableStateOf(false) }
     var nomeNovoVendedor by remember { mutableStateOf("") }
     var expandedTipoVendedor by remember { mutableStateOf(false) }
-    var tipoSelecionado by remember { mutableStateOf(TipoVendedor.COLABORADOR)}
+    var tipoSelecionado by remember { mutableStateOf(TipoVendedor.COLABORADOR) }
 
     var showAcoesSheet by remember { mutableStateOf(false) }
     var conteudoSheet by remember { mutableStateOf(TipoConteudoSheet.ACOES) }
 
     var shouldShowRemovalDialog by remember { mutableStateOf(false) }
     var shouldShowAlternarPagamentoDialog by remember { mutableStateOf(false) }
+
+    // Estados para gerenciamento de Blocos em Lote
+    var showDialogInserirBlocos by remember { mutableStateOf(false) }
+    var showDialogExcluirBlocos by remember { mutableStateOf(false) }
+    var alertaRifasEmUso by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (qtdBlocos, rifasEmUso)
+
+    val totalBlocos = remember(listaRifas) { listaRifas.distinctBy { it.bloco }.size }
 
     val context = LocalContext.current
 
@@ -87,6 +103,50 @@ fun TelaRifas(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (fabExpandido) {
+                    // 1. Gerar Blocos
+                    SmallFloatingActionButton(
+                        onClick = {
+                            fabExpandido = false
+                            showDialogInserirBlocos = true
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.offset(x = (-4).dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Icon(Icons.Default.AddCircleOutline, contentDescription = null)
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text("Gerar blocos")
+                        }
+                    }
+
+                    // 2. Remover Últimos Blocos (visível apenas se houver blocos existentes)
+                    if (totalBlocos > 0) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                fabExpandido = false
+                                showDialogExcluirBlocos = true
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.offset(x = (-4).dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.Default.DeleteSweep, contentDescription = null)
+                                Spacer(modifier = Modifier.padding(4.dp))
+                                Text("Remover blocos")
+                            }
+                        }
+                    }
+
+                    // 3. Novo Vendedor
                     SmallFloatingActionButton(
                         onClick = {
                             fabExpandido = false
@@ -95,7 +155,7 @@ fun TelaRifas(
                         shape = RoundedCornerShape(12.dp),
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.offset(x = (-4).dp)
-                        ) {
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 8.dp)
@@ -106,6 +166,7 @@ fun TelaRifas(
                         }
                     }
 
+                    // 4. Exportar CSV
                     SmallFloatingActionButton(
                         onClick = {
                             viewModel.viewModelScope.launch(Dispatchers.IO) {
@@ -159,32 +220,79 @@ fun TelaRifas(
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding))
-        {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
-                        start = 12.dp, end = 12.dp,
-                        top = 8.dp
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally
-            )
-            {
-                items(listaRifas.distinctBy { it.bloco }) { primeiraRifaBloco ->
-                    RifaCard(
-                        viewModel = viewModel,
-                        primeiraRifaBloco = primeiraRifaBloco,
-                        isBlocoSelecionado = rifaSelecionada?.bloco == primeiraRifaBloco.bloco,
-                        onClick = { viewModel.selecionarRifa(primeiraRifaBloco) },
-                        onAlterar = { showAcoesSheet = true }
-                    )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (listaRifas.isEmpty()) {
+                EstadoVazioRifas(
+                    onGerarPrimeirasRifas = { showDialogInserirBlocos = true }
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 12.dp, end = 12.dp, top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    items(listaRifas.distinctBy { it.bloco }) { primeiraRifaBloco ->
+                        RifaCard(
+                            viewModel = viewModel,
+                            primeiraRifaBloco = primeiraRifaBloco,
+                            isBlocoSelecionado = rifaSelecionada?.bloco == primeiraRifaBloco.bloco,
+                            onClick = { viewModel.selecionarRifa(primeiraRifaBloco) },
+                            onAlterar = { showAcoesSheet = true }
+                        )
+                    }
                 }
             }
         }
 
+        // Diálogo para Gerar Blocos
+        if (showDialogInserirBlocos) {
+            DialogInserirBlocosEmLote(
+                onDismiss = { showDialogInserirBlocos = false },
+                onConfirmar = { qtdBlocos ->
+                    viewModel.gerarBlocosEmLote(qtdBlocos)
+                }
+            )
+        }
+
+        // Diálogo para Excluir Últimos Blocos
+        if (showDialogExcluirBlocos) {
+            DialogExcluirUltimosBlocos(
+                totalBlocosExistentes = totalBlocos,
+                onDismiss = { showDialogExcluirBlocos = false },
+                onConfirmar = { qtdBlocos ->
+                    viewModel.excluirUltimosBlocos(
+                        quantidadeBlocos = qtdBlocos,
+                        forcar = false
+                    ) { sucesso, emUso ->
+                        if (!sucesso) {
+                            alertaRifasEmUso = Pair(qtdBlocos, emUso)
+                        }
+                    }
+                }
+            )
+        }
+
+        // Diálogo de Alerta de Segurança (quando há rifas pagas/vinculadas nos blocos)
+        alertaRifasEmUso?.let { (qtdBlocos, emUso) ->
+            DialogConfirmarExclusaoBlocosEmUso(
+                quantidadeBlocos = qtdBlocos,
+                quantidadeRifasEmUso = emUso,
+                onDismiss = { alertaRifasEmUso = null },
+                onConfirmarForcar = {
+                    viewModel.excluirUltimosBlocos(
+                        quantidadeBlocos = qtdBlocos,
+                        forcar = true
+                    )
+                }
+            )
+        }
+
+        // Diálogo Novo Vendedor
         if (showNovoVendedorDialog) {
             AlertDialog(
                 onDismissRequest = {
@@ -230,7 +338,7 @@ fun TelaRifas(
                                 onDismissRequest = { expandedTipoVendedor = false }
                             ) {
                                 TipoVendedor.entries.forEach { opcao ->
-                                    if (opcao != TipoVendedor.CRISMANDO){
+                                    if (opcao != TipoVendedor.CRISMANDO) {
                                         DropdownMenuItem(
                                             text = { Text(opcao.name) },
                                             onClick = {
@@ -268,6 +376,7 @@ fun TelaRifas(
             )
         }
 
+        // BottomSheet de Ações / Seleção de Vendedor
         if (showAcoesSheet) {
             ModalBottomSheet(onDismissRequest = {
                 showAcoesSheet = false
@@ -280,12 +389,12 @@ fun TelaRifas(
                             viewModel = viewModel,
                             onAlterarVendedor = { conteudoSheet = TipoConteudoSheet.SELECAO_VENDEDOR },
                             onRemoverVendedor = { shouldShowRemovalDialog = true },
-                            onAlternarIsPago = {  shouldShowAlternarPagamentoDialog = true },
+                            onAlternarIsPago = { shouldShowAlternarPagamentoDialog = true },
                             rifaSelecionada = rifaSelecionada!!
                         )
                     }
                     TipoConteudoSheet.SELECAO_VENDEDOR -> {
-                        rifaSelecionada?.let {rifa ->
+                        rifaSelecionada?.let { rifa ->
                             ListaVendedoresSheet(
                                 viewModel = viewModel,
                                 bloco = rifa.bloco,
@@ -299,20 +408,24 @@ fun TelaRifas(
                                     conteudoSheet = TipoConteudoSheet.ACOES
                                     showAcoesSheet = false
                                     viewModel.alterarFiltroNome("")
-                                })
+                                }
+                            )
                         }
                     }
                 }
             }
         }
 
+        // Diálogo Confirmar Remoção de Vendedor
         if (shouldShowRemovalDialog) {
             AlertDialog(
                 onDismissRequest = { shouldShowRemovalDialog = false },
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.desvincularVendedorDoBloco(rifaSelecionada?.bloco ?: 0)
-                        shouldShowRemovalDialog = false; showAcoesSheet = false; viewModel.selecionarRifa(null)
+                        shouldShowRemovalDialog = false
+                        showAcoesSheet = false
+                        viewModel.selecionarRifa(null)
                     }) {
                         Text("Confirmar", color = MaterialTheme.colorScheme.primary)
                     }
@@ -327,17 +440,17 @@ fun TelaRifas(
             )
         }
 
+        // Diálogo Alternar Pagamento
         if (shouldShowAlternarPagamentoDialog) {
-
-            var title = ""
-            var text = ""
-
-            if (rifaSelecionada?.estaPaga == true){
-                    title = "Cancelar confirmação de pagamento"
-                    text = "Deseja cancelar a confirmação de pagamento para o bloco?"
+            val title = if (rifaSelecionada?.estaPaga == true) {
+                "Cancelar confirmação de pagamento"
             } else {
-                    title = "Confirmar pagamento"
-                    text = "Deseja confirmar o pagamento para o bloco?"
+                "Confirmar pagamento"
+            }
+            val text = if (rifaSelecionada?.estaPaga == true) {
+                "Deseja cancelar a confirmação de pagamento para o bloco?"
+            } else {
+                "Deseja confirmar o pagamento para o bloco?"
             }
 
             AlertDialog(
@@ -345,7 +458,9 @@ fun TelaRifas(
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.alternarPagamentoRifa(rifaSelecionada!!)
-                        shouldShowAlternarPagamentoDialog = false; showAcoesSheet = false; viewModel.selecionarRifa(null)
+                        shouldShowAlternarPagamentoDialog = false
+                        showAcoesSheet = false
+                        viewModel.selecionarRifa(null)
                     }) {
                         Text("Confirmar", color = MaterialTheme.colorScheme.primary)
                     }
@@ -363,3 +478,43 @@ fun TelaRifas(
 }
 
 enum class TipoConteudoSheet { ACOES, SELECAO_VENDEDOR }
+
+@Composable
+fun EstadoVazioRifas(onGerarPrimeirasRifas: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.ConfirmationNumber,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Nenhuma rifa cadastrada",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Você pode gerar os primeiros blocos de rifas para a turma agora.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Button(
+            onClick = onGerarPrimeirasRifas,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Gerar Rifas Iniciais")
+        }
+    }
+}

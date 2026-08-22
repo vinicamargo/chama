@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -404,6 +405,52 @@ class MainViewModel(
             presencaDao.deletarPresencasPorCrismando(crismandoId)
             vendedorDao.deletarVendedorPorId(crismandoId)
             crismandoDao.deletarCrismando(crismandoId)
+        }
+    }
+
+    // Gera N novos blocos completos (10 rifas cada)
+    fun gerarBlocosEmLote(quantidadeBlocos: Int) {
+        if (quantidadeBlocos <= 0) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val ultimoNumero = rifaDao.getMaiorNumeroRifa()
+            val totalRifasParaCriar = quantidadeBlocos * 10
+
+            val novasRifas = (1..totalRifasParaCriar).map { offset ->
+                val num = ultimoNumero + offset
+                val blocoCalculado = ((num - 1) / 10) + 1
+
+                Rifa(
+                    numero = num,
+                    bloco = blocoCalculado,
+                    estaPaga = false,
+                    vendedorId = null
+                )
+            }
+            rifaDao.inserirRifas(novasRifas)
+        }
+    }
+
+    // Exclui os N últimos blocos completos
+    fun excluirUltimosBlocos(
+        quantidadeBlocos: Int,
+        forcar: Boolean = false,
+        onResultado: (sucesso: Boolean, emUso: Int) -> Unit = { _, _ -> }
+    ) {
+        if (quantidadeBlocos <= 0) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val emUso = rifaDao.contarRifasEmUsoNosUltimosBlocos(quantidadeBlocos)
+
+            if (emUso > 0 && !forcar) {
+                withContext(Dispatchers.Main) {
+                    onResultado(false, emUso)
+                }
+                return@launch
+            }
+
+            rifaDao.excluirUltimosBlocos(quantidadeBlocos)
+            withContext(Dispatchers.Main) {
+                onResultado(true, 0)
+            }
         }
     }
 }
