@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema da Splash Screen sem ícone -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Cor sólida que cobre toda a tela inicial -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!-- Remove qualquer ícone/animação de carregamento -->
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <!-- Tema definitivo que assumirá assim que o Compose carregar -->
+        <item name="postSplashScreenTheme">@style/Theme.CHAMA</item>
+    </style>
+</resources>

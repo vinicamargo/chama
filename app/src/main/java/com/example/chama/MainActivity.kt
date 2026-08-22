@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.chama.data.AppDatabase
 import com.example.chama.ui.theme.CHAMATheme
@@ -15,9 +18,11 @@ import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.screens.TelaListasPresencas
 import com.example.chama.ui.screens.TelaPrincipal
 import com.example.chama.ui.screens.TelaRifas
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -31,7 +36,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CHAMATheme {
-                Surface {
+                Surface (
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ){
                     val navController = rememberNavController()
 
                     NavHost(navController = navController, startDestination = Tela.Home.rota) {
