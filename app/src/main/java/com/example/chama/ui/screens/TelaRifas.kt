@@ -1,11 +1,16 @@
 package com.example.chama.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,8 +18,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -26,6 +32,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -48,23 +56,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
+import com.example.chama.data.entity.Rifa
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.rifas.DialogConfirmarExclusaoBlocosEmUso
 import com.example.chama.ui.components.rifas.DialogExcluirUltimosBlocos
 import com.example.chama.ui.components.rifas.DialogInserirBlocosEmLote
-import com.example.chama.ui.components.rifas.RifaCard
 import com.example.chama.ui.components.rifas.sheet.ListaVendedoresSheet
 import com.example.chama.ui.components.rifas.sheet.MenuSheet
 import com.example.chama.utils.TipoVendedor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
+
+enum class TipoConteudoSheet { ACOES, SELECAO_VENDEDOR }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,12 +99,14 @@ fun TelaRifas(
     var shouldShowRemovalDialog by remember { mutableStateOf(false) }
     var shouldShowAlternarPagamentoDialog by remember { mutableStateOf(false) }
 
-    // Estados para gerenciamento de Blocos em Lote
     var showDialogInserirBlocos by remember { mutableStateOf(false) }
     var showDialogExcluirBlocos by remember { mutableStateOf(false) }
-    var alertaRifasEmUso by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (qtdBlocos, rifasEmUso)
+    var alertaRifasEmUso by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     val totalBlocos = remember(listaRifas) { listaRifas.distinctBy { it.bloco }.size }
+    val blocos = remember(listaRifas) {
+        listaRifas.groupBy { it.bloco }.toList().sortedBy { it.first }
+    }
 
     val context = LocalContext.current
 
@@ -103,7 +117,6 @@ fun TelaRifas(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (fabExpandido) {
-                    // 1. Gerar Blocos
                     SmallFloatingActionButton(
                         onClick = {
                             fabExpandido = false
@@ -123,7 +136,6 @@ fun TelaRifas(
                         }
                     }
 
-                    // 2. Remover Últimos Blocos (visível apenas se houver blocos existentes)
                     if (totalBlocos > 0) {
                         SmallFloatingActionButton(
                             onClick = {
@@ -146,7 +158,6 @@ fun TelaRifas(
                         }
                     }
 
-                    // 3. Novo Vendedor
                     SmallFloatingActionButton(
                         onClick = {
                             fabExpandido = false
@@ -166,12 +177,10 @@ fun TelaRifas(
                         }
                     }
 
-                    // 4. Exportar CSV
                     SmallFloatingActionButton(
                         onClick = {
                             viewModel.viewModelScope.launch(Dispatchers.IO) {
                                 val dadosCsv = viewModel.exportarRifasCSV()
-
                                 val file = File(context.cacheDir, "relatorio_rifas.csv")
                                 file.writeText(dadosCsv, charset = Charsets.UTF_8)
 
@@ -230,26 +239,33 @@ fun TelaRifas(
                     onGerarPrimeirasRifas = { showDialogInserirBlocos = true }
                 )
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 12.dp, end = 12.dp, top = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(5),
+                    // O espaçamento extra no bottom (88.dp) impede que o FAB tampe os últimos itens ao rolar
+                    contentPadding = PaddingValues(start = 10.dp, top = 10.dp, end = 10.dp, bottom = 88.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    items(listaRifas.distinctBy { it.bloco }) { primeiraRifaBloco ->
-                        RifaCard(
-                            viewModel = viewModel,
-                            primeiraRifaBloco = primeiraRifaBloco,
-                            isBlocoSelecionado = rifaSelecionada?.bloco == primeiraRifaBloco.bloco,
-                            onClick = { viewModel.selecionarRifa(primeiraRifaBloco) },
-                            onAlterar = { showAcoesSheet = true }
+                    items(blocos, key = { it.first }) { item: Pair<Int, List<Rifa>> ->
+                        val rifasDoBloco = item.second
+                        val primeiraRifa = rifasDoBloco.first()
+                        val isSelecionado = rifaSelecionada?.bloco == primeiraRifa.bloco
+
+                        BlocoGridItem(
+                            blocoNum = primeiraRifa.bloco,
+                            rifas = rifasDoBloco,
+                            isSelecionado = isSelecionado,
+                            onClick = {
+                                viewModel.selecionarRifa(primeiraRifa)
+                                showAcoesSheet = true
+                            }
                         )
                     }
                 }
             }
         }
 
-        // Diálogo para Gerar Blocos
         if (showDialogInserirBlocos) {
             DialogInserirBlocosEmLote(
                 onDismiss = { showDialogInserirBlocos = false },
@@ -259,7 +275,6 @@ fun TelaRifas(
             )
         }
 
-        // Diálogo para Excluir Últimos Blocos
         if (showDialogExcluirBlocos) {
             DialogExcluirUltimosBlocos(
                 totalBlocosExistentes = totalBlocos,
@@ -277,7 +292,6 @@ fun TelaRifas(
             )
         }
 
-        // Diálogo de Alerta de Segurança (quando há rifas pagas/vinculadas nos blocos)
         alertaRifasEmUso?.let { (qtdBlocos, emUso) ->
             DialogConfirmarExclusaoBlocosEmUso(
                 quantidadeBlocos = qtdBlocos,
@@ -292,16 +306,13 @@ fun TelaRifas(
             )
         }
 
-        // Diálogo Novo Vendedor
         if (showNovoVendedorDialog) {
             AlertDialog(
                 onDismissRequest = {
                     showNovoVendedorDialog = false
                     nomeNovoVendedor = ""
                 },
-                title = {
-                    Text(text = "Novo Vendedor")
-                },
+                title = { Text(text = "Novo Vendedor") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Digite o nome do novo vendedor que deseja cadastrar:")
@@ -376,7 +387,6 @@ fun TelaRifas(
             )
         }
 
-        // BottomSheet de Ações / Seleção de Vendedor
         if (showAcoesSheet) {
             ModalBottomSheet(onDismissRequest = {
                 showAcoesSheet = false
@@ -385,13 +395,15 @@ fun TelaRifas(
             }) {
                 when (conteudoSheet) {
                     TipoConteudoSheet.ACOES -> {
-                        MenuSheet(
-                            viewModel = viewModel,
-                            onAlterarVendedor = { conteudoSheet = TipoConteudoSheet.SELECAO_VENDEDOR },
-                            onRemoverVendedor = { shouldShowRemovalDialog = true },
-                            onAlternarIsPago = { shouldShowAlternarPagamentoDialog = true },
-                            rifaSelecionada = rifaSelecionada!!
-                        )
+                        rifaSelecionada?.let { rifa ->
+                            MenuSheet(
+                                viewModel = viewModel,
+                                onAlterarVendedor = { conteudoSheet = TipoConteudoSheet.SELECAO_VENDEDOR },
+                                onRemoverVendedor = { shouldShowRemovalDialog = true },
+                                onAlternarIsPago = { shouldShowAlternarPagamentoDialog = true },
+                                rifaSelecionada = rifa
+                            )
+                        }
                     }
                     TipoConteudoSheet.SELECAO_VENDEDOR -> {
                         rifaSelecionada?.let { rifa ->
@@ -416,7 +428,6 @@ fun TelaRifas(
             }
         }
 
-        // Diálogo Confirmar Remoção de Vendedor
         if (shouldShowRemovalDialog) {
             AlertDialog(
                 onDismissRequest = { shouldShowRemovalDialog = false },
@@ -440,18 +451,9 @@ fun TelaRifas(
             )
         }
 
-        // Diálogo Alternar Pagamento
         if (shouldShowAlternarPagamentoDialog) {
-            val title = if (rifaSelecionada?.estaPaga == true) {
-                "Cancelar confirmação de pagamento"
-            } else {
-                "Confirmar pagamento"
-            }
-            val text = if (rifaSelecionada?.estaPaga == true) {
-                "Deseja cancelar a confirmação de pagamento para o bloco?"
-            } else {
-                "Deseja confirmar o pagamento para o bloco?"
-            }
+            val title = if (rifaSelecionada?.estaPaga == true) "Cancelar confirmação de pagamento" else "Confirmar pagamento"
+            val text = if (rifaSelecionada?.estaPaga == true) "Deseja cancelar a confirmação de pagamento para o bloco?" else "Deseja confirmar o pagamento para o bloco?"
 
             AlertDialog(
                 onDismissRequest = { shouldShowAlternarPagamentoDialog = false },
@@ -477,7 +479,64 @@ fun TelaRifas(
     }
 }
 
-enum class TipoConteudoSheet { ACOES, SELECAO_VENDEDOR }
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun BlocoGridItem(
+    blocoNum: Int,
+    rifas: List<Rifa>,
+    isSelecionado: Boolean,
+    onClick: () -> Unit
+) {
+    val primeiraRifa = rifas.firstOrNull()
+    val isPago = primeiraRifa?.estaPaga == true
+    val temVendedor = primeiraRifa?.vendedorId != null
+
+    val inicio = (blocoNum - 1) * 10 + 1
+    val fim = inicio + 9
+
+    val containerColor = when {
+        isPago -> Color(0xFF2E7D32)            // Verde (Pago)
+        temVendedor -> Color(0xFF3F51B5)       // Azul / Vinculado
+        else -> Color(0xFF1F0003)              // Vermelho escuro / Disponível
+    }
+
+    val contentColor = Color.White
+
+    Card(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .combinedClickable(onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        border = if (isSelecionado) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "$blocoNum",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = contentColor
+            )
+            Text(
+                text = "$inicio-$fim",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = contentColor.copy(alpha = 0.85f),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
 
 @Composable
 fun EstadoVazioRifas(onGerarPrimeirasRifas: () -> Unit) {
