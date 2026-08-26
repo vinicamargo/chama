@@ -98,6 +98,7 @@ fun DetalhesCrismandoExpandido(
     totalPresentes: Int = 0,
     totalEncontrosRealizados: Int = 0,
     porcentagemPresenca: Float = 100f,
+    corDestaque: Color = MaterialTheme.colorScheme.primary,
     onFechar: () -> Unit,
     onExcluir: (Crismando) -> Unit,
     onAtualizar: (Crismando) -> Unit,
@@ -109,7 +110,6 @@ fun DetalhesCrismandoExpandido(
     var showEditarDialog by remember { mutableStateOf(false) }
     var showOpcoesFotoDialog by remember { mutableStateOf(false) }
 
-    // Launcher do PhotoPicker nativo do Android
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -121,16 +121,7 @@ fun DetalhesCrismandoExpandido(
         }
     }
 
-    var tempFileCamera by remember { mutableStateOf<File?>(null) }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { sucesso ->
-        if (sucesso && tempFileCamera != null) {
-            onAtualizar(crismando.copy(fotoUrl = tempFileCamera?.absolutePath))
-        }
-    }
-
+    @Suppress("DEPRECATION")
     val cropImageLauncher = rememberLauncherForActivityResult(
         contract = CropImageContract()
     ) { result: CropImageView.CropResult ->
@@ -147,8 +138,8 @@ fun DetalhesCrismandoExpandido(
 
     fun iniciarRecorte(apenasCamera: Boolean = false, apenasGaleria: Boolean = false) {
         val cropOptions = CropImageOptions(
-            cropShape = CropImageView.CropShape.OVAL,          // ⬅️ Recorte Redondo
-            fixAspectRatio = true,                            // ⬅️ Proporção 1:1
+            cropShape = CropImageView.CropShape.OVAL,
+            fixAspectRatio = true,
             aspectRatioX = 1,
             aspectRatioY = 1,
             guidelines = CropImageView.Guidelines.ON,
@@ -172,7 +163,7 @@ fun DetalhesCrismandoExpandido(
             crismando.dataNascimento?.let {
                 LocalDate.parse(it).format(DateTimeFormatter.ofPattern("ddMMyyyy"))
             }
-        }.getOrNull() ?: ""
+        }?.getOrNull() ?: ""
         mutableStateOf(ddmmyyyy)
     }
     var telEdit by remember(crismando) { mutableStateOf(crismando.telefone ?: "") }
@@ -195,7 +186,7 @@ fun DetalhesCrismandoExpandido(
                 .padding(20.dp)
                 .verticalScroll(scrollState)
         ) {
-            // Cabeçalho com Editar e Fechar
+            // Cabeçalho
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -211,7 +202,7 @@ fun DetalhesCrismandoExpandido(
                     Icon(
                         imageVector = Icons.Outlined.Edit,
                         contentDescription = "Editar Crismando",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = corDestaque
                     )
                 }
 
@@ -225,7 +216,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Avatar Clicável com badge de Câmera
+            // Avatar
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -234,7 +225,7 @@ fun DetalhesCrismandoExpandido(
                     modifier = Modifier
                         .size(150.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .background(corDestaque.copy(alpha = 0.2f))
                         .clickable { showOpcoesFotoDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -278,7 +269,7 @@ fun DetalhesCrismandoExpandido(
             Text(
                 text = "Frequência dos Encontros",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
+                color = corDestaque
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -383,7 +374,7 @@ fun DetalhesCrismandoExpandido(
             Text(
                 text = "Dados Pessoais",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
+                color = corDestaque
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -392,14 +383,15 @@ fun DetalhesCrismandoExpandido(
                 crismando.dataNascimento?.let {
                     LocalDate.parse(it).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                 }
-            }.getOrNull() ?: crismando.dataNascimento ?: "Não informada"
+            }?.getOrNull() ?: crismando.dataNascimento ?: "Não informada"
 
             val idadeTexto = crismando.idade?.let { " ($it anos)" } ?: ""
 
             ItemInfoCard(
                 icone = Icons.Default.Cake,
                 titulo = "Data de Nascimento",
-                valor = "$dataFormatada$idadeTexto"
+                valor = "$dataFormatada$idadeTexto",
+                corIcone = corDestaque
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -408,7 +400,7 @@ fun DetalhesCrismandoExpandido(
             Text(
                 text = "Contato",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
+                color = corDestaque
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -416,6 +408,7 @@ fun DetalhesCrismandoExpandido(
             ItemContatoCard(
                 titulo = "Telefone do Crismando",
                 telefone = crismando.telefone,
+                corIcone = corDestaque,
                 onLigar = { tel ->
                     val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))
                     context.startActivity(intent)
@@ -432,7 +425,7 @@ fun DetalhesCrismandoExpandido(
             Text(
                 text = "Responsável",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
+                color = corDestaque
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -440,7 +433,8 @@ fun DetalhesCrismandoExpandido(
             ItemInfoCard(
                 icone = Icons.Default.FamilyRestroom,
                 titulo = "Nome do Pai / Mãe",
-                valor = crismando.nomeResponsavel ?: "Não informado"
+                valor = crismando.nomeResponsavel ?: "Não informado",
+                corIcone = corDestaque
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -448,6 +442,7 @@ fun DetalhesCrismandoExpandido(
             ItemContatoCard(
                 titulo = "Telefone do Responsável",
                 telefone = crismando.telefoneResponsavel,
+                corIcone = corDestaque,
                 onLigar = { tel ->
                     val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))
                     context.startActivity(intent)
@@ -464,7 +459,7 @@ fun DetalhesCrismandoExpandido(
             Text(
                 text = "Rifas Vinculadas",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
+                color = corDestaque
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -481,7 +476,7 @@ fun DetalhesCrismandoExpandido(
                         Icon(
                             imageVector = Icons.Default.ConfirmationNumber,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = corDestaque,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(14.dp))
@@ -508,7 +503,7 @@ fun DetalhesCrismandoExpandido(
                                     onClick = {},
                                     label = { Text("Bloco $bloco ($inicio-$fim)", style = MaterialTheme.typography.labelSmall) },
                                     colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                        containerColor = corDestaque.copy(alpha = 0.2f)
                                     )
                                 )
                             }
@@ -519,7 +514,7 @@ fun DetalhesCrismandoExpandido(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botão Editar + Excluir no rodapé
+            // Botão Editar + Excluir
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -550,7 +545,6 @@ fun DetalhesCrismandoExpandido(
         }
     }
 
-    // Diálogo de Opções de Foto (Escolher ou Remover)
     if (showOpcoesFotoDialog) {
         Dialog(onDismissRequest = { showOpcoesFotoDialog = false }) {
             Card(
@@ -572,7 +566,6 @@ fun DetalhesCrismandoExpandido(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
-                    // Opção 1: Tirar Foto com a Câmera
                     TextButton(
                         onClick = {
                             showOpcoesFotoDialog = false
@@ -587,7 +580,7 @@ fun DetalhesCrismandoExpandido(
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = corDestaque,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(14.dp))
@@ -599,7 +592,6 @@ fun DetalhesCrismandoExpandido(
                         }
                     }
 
-                    // Opção 2: Escolher da Galeria
                     TextButton(
                         onClick = {
                             showOpcoesFotoDialog = false
@@ -616,7 +608,7 @@ fun DetalhesCrismandoExpandido(
                             Icon(
                                 imageVector = Icons.Default.Image,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = corDestaque,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(14.dp))
@@ -628,7 +620,6 @@ fun DetalhesCrismandoExpandido(
                         }
                     }
 
-                    // Opção 3: Remover Foto (se existir)
                     if (!crismando.fotoUrl.isNullOrBlank()) {
                         TextButton(
                             onClick = {
@@ -674,7 +665,6 @@ fun DetalhesCrismandoExpandido(
         }
     }
 
-    // Diálogo de Edição de Dados
     if (showEditarDialog) {
         AlertDialog(
             onDismissRequest = { showEditarDialog = false },
@@ -760,7 +750,7 @@ fun DetalhesCrismandoExpandido(
                                 } else {
                                     null
                                 }
-                            }.getOrNull()
+                            }?.getOrNull()
 
                             val crismandoAtualizado = crismando.copy(
                                 nome = nomeEdit.trim(),
@@ -775,7 +765,7 @@ fun DetalhesCrismandoExpandido(
                         }
                     }
                 ) {
-                    Text("Salvar Alterações", fontWeight = FontWeight.Bold)
+                    Text("Salvar Alterações", fontWeight = FontWeight.Bold, color = corDestaque)
                 }
             },
             dismissButton = {
@@ -786,7 +776,6 @@ fun DetalhesCrismandoExpandido(
         )
     }
 
-    // Diálogo de Confirmação de Exclusão
     if (showConfirmarExclusaoDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmarExclusaoDialog = false },
@@ -812,7 +801,7 @@ fun DetalhesCrismandoExpandido(
 
                     if (blocosVinculados.isNotEmpty()) {
                         Text(
-                            text = "⚠️ ATENÇÃO: Este crismando possui ${blocosVinculados.size} bloco(s) de rifa vinculados (Blocos: ${blocosVinculados.joinToString(", ")}). Ao excluí-lo, esses blocos ficarão desvinculados.",
+                            text = "ATENÇÃO: Este crismando possui ${blocosVinculados.size} bloco(s) de rifa vinculados (Blocos: ${blocosVinculados.joinToString(", ")}). Ao excluí-lo, esses blocos ficarão desvinculados.",
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold
@@ -846,7 +835,8 @@ fun DetalhesCrismandoExpandido(
 private fun ItemInfoCard(
     icone: ImageVector,
     titulo: String,
-    valor: String
+    valor: String,
+    corIcone: Color = MaterialTheme.colorScheme.primary
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -862,7 +852,7 @@ private fun ItemInfoCard(
             Icon(
                 imageVector = icone,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = corIcone,
                 modifier = Modifier.size(24.dp)
             )
 
@@ -888,6 +878,7 @@ private fun ItemInfoCard(
 private fun ItemContatoCard(
     titulo: String,
     telefone: String?,
+    corIcone: Color = MaterialTheme.colorScheme.primary,
     onLigar: (String) -> Unit,
     onWhatsApp: (String) -> Unit
 ) {
@@ -912,7 +903,7 @@ private fun ItemContatoCard(
             Icon(
                 imageVector = Icons.Default.Phone,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = corIcone,
                 modifier = Modifier.size(24.dp)
             )
 
@@ -952,7 +943,7 @@ private fun ItemContatoCard(
                         Icon(
                             imageVector = Icons.Default.Call,
                             contentDescription = "Ligar",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = corIcone,
                             modifier = Modifier.size(20.dp)
                         )
                     }
