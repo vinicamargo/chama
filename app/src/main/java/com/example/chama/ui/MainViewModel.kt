@@ -228,34 +228,131 @@ class MainViewModel(
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
         val crismandos = listaCrismandosOriginal.value
-        val datas = diasComChamada.value.sorted()
-        val datasFormatadas = datas.map { LocalDate.parse(it).format(formatter) }
+        val datasIso = diasComChamada.value.sorted()
+        val datasFormatadas = datasIso.map { dataIso ->
+            runCatching { LocalDate.parse(dataIso).format(formatter) }.getOrDefault(dataIso)
+        }
         val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
 
+        // Mapeamento rápido por (crismandoId, dataIso)
+        val mapaPresencas = todasPresencas.associate { presenca ->
+            Pair(presenca.crismandoId, presenca.data) to presenca.estaPresente
+        }
+
         val csv = StringBuilder()
+        csv.append("\uFEFF") // BOM UTF-8 para compatibilidade com Excel
 
-        csv.append("\uFEFF")
-
-        csv.append("Nome")
-        datasFormatadas.forEach { data -> csv.append(",$data") }
-        csv.append("\n")
+        // 1. Cabeçalho com 6 colunas fixas + datas dos encontros
+        val colunasCabecalho = listOf(
+            "Nome",
+            "FotoUrl",
+            "DataNascimento",
+            "Telefone",
+            "NomeResponsavel",
+            "TelefoneResponsavel"
+        ) + datasFormatadas
+        csv.append(colunasCabecalho.joinToString(",")).append("\n")
 
         crismandos.forEach { crismando ->
-            csv.append(crismando.nome)
+            val dadosCadastrais = listOf(
+                crismando.nome,
+                crismando.fotoUrl ?: "",
+                crismando.dataNascimento ?: "",
+                crismando.telefone ?: "",
+                crismando.nomeResponsavel ?: "",
+                crismando.telefoneResponsavel ?: ""
+            )
 
-            datas.forEach { data ->
-                var status = ""
+            val statusPresencas = datasIso.map { dataStr ->
+                val dataEncontro = runCatching { LocalDate.parse(dataStr) }.getOrNull()
 
-                if (LocalDate.parse(data) <= LocalDate.now()) {
-                    val registro = todasPresencas.find {
-                        it.crismandoId == crismando.crismandoId && it.data == data
-                    }
-
-                    status = if (registro?.estaPresente == true) "O" else "F"
+                if (dataEncontro != null && dataEncontro <= dataDeHoje) {
+                    val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
+                    if (estaPresente) "O" else "F"
+                } else {
+                    ""
                 }
-                csv.append(",$status")
             }
-            csv.append("\n")
+
+            val linhaCompleta = (dadosCadastrais + statusPresencas).joinToString(",")
+            csv.append(linhaCompleta).append("\n")
+        }
+
+        return csv.toString()
+    }
+
+    fun exportarBackupCompletoCSV(): String {
+        val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
+
+        val crismandos = listaCrismandosOriginal.value
+        val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
+        val rifas = listaRifas.value
+        val datasIso = diasComChamada.value.sorted()
+        val datasFormatadas = datasIso.map { dataIso ->
+            runCatching { LocalDate.parse(dataIso).format(formatter) }.getOrDefault(dataIso)
+        }
+
+        // 1. Mapeamento de presenças por (crismandoId, dataIso)
+        val mapaPresencas = todasPresencas.associate { presenca ->
+            Pair(presenca.crismandoId, presenca.data) to presenca.estaPresente
+        }
+
+        // 2. Mapeamento de blocos de rifas por crismandoId
+        val mapaBlocosPorCrismando = rifas
+            .filter { it.vendedorId != null }
+            .groupBy { it.vendedorId!! }
+            .mapValues { (_, rifasDoVendedor) ->
+                rifasDoVendedor.map { it.bloco }.distinct().sorted()
+            }
+
+        val csv = StringBuilder()
+        csv.append("\uFEFF") // BOM UTF-8 para compatibilidade com Excel
+
+        // 3. Cabeçalho Padronizado: 6 Cadastrais + Rifas + Datas
+        val colunasCabecalho = listOf(
+            "Nome",
+            "FotoUrl",
+            "DataNascimento",
+            "Telefone",
+            "NomeResponsavel",
+            "TelefoneResponsavel",
+            "BlocosRifa"
+        ) + datasFormatadas
+        csv.append(colunasCabecalho.joinToString(",")).append("\n")
+
+        // 4. Linhas com dados consolidados
+        crismandos.forEach { crismando ->
+            val blocosDoCrismando = mapaBlocosPorCrismando[crismando.crismandoId] ?: emptyList()
+            val textoBlocos = if (blocosDoCrismando.isNotEmpty()) {
+                "\"${blocosDoCrismando.joinToString(";")}\"" // Ex: "1;2;3"
+            } else {
+                ""
+            }
+
+            val dadosCadastrais = listOf(
+                crismando.nome,
+                crismando.fotoUrl ?: "",
+                crismando.dataNascimento ?: "",
+                crismando.telefone ?: "",
+                crismando.nomeResponsavel ?: "",
+                crismando.telefoneResponsavel ?: "",
+                textoBlocos
+            )
+
+            // Presenças padronizadas com 'O' ou 'F' até a data limite parametrizada
+            val statusPresencas = datasIso.map { dataStr ->
+                val dataEncontro = runCatching { LocalDate.parse(dataStr) }.getOrNull()
+
+                if (dataEncontro != null && dataEncontro <= dataDeHoje) {
+                    val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
+                    if (estaPresente) "O" else "F"
+                } else {
+                    "" // Datas futuras ficam vazias
+                }
+            }
+
+            val linhaCompleta = (dadosCadastrais + statusPresencas).joinToString(",")
+            csv.append(linhaCompleta).append("\n")
         }
 
         return csv.toString()
