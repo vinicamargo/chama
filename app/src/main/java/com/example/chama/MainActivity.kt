@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val db = AppDatabase.getDatabase(applicationContext, lifecycleScope)
+        val db = AppDatabase.getDatabase(applicationContext)
         val viewModel = MainViewModel(
             db.crismandoDao(),
             db.presencaDao(),

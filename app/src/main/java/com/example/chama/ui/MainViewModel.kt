@@ -18,6 +18,7 @@ import com.example.chama.data.dao.RifaDao
 import com.example.chama.data.dao.VendedorDao
 import com.example.chama.data.entity.Rifa
 import com.example.chama.data.model.PessoaVendedora
+import com.example.chama.utils.NormalizacaoUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -268,47 +269,66 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val reader = inputStream.bufferedReader()
+                    val linhas = reader.readLines().filter { it.isNotBlank() }
+                    if (linhas.isEmpty()) return@use
+
                     val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
-                    val reader = inputStream.bufferedReader()
-                    val linhas = reader.readLines()
+                    val cabecalhoColunas = linhas[0].split(",")
+                    if (cabecalhoColunas.size <= 6) return@use
 
-                    val datasBruta = linhas[0].split(",", limit = 2)[1].split(",")
-                    val datasLista = datasBruta.map { dataString ->
-                        LocalDate.parse(dataString, formatter).toString()
+                    val datasLista = cabecalhoColunas.drop(6).mapNotNull { dataStr ->
+                        runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
                     }
+
+                    if (datasLista.isEmpty()) return@use
 
                     limparDatabase()
 
                     linhas.drop(1).forEach { linha ->
-                        val colunas = linha.split(",", limit = 2)
+                        val colunas = linha.split(",")
+                        val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
+                        if (nome.isBlank()) return@forEach
 
-                        val nome = colunas[0]
-                        val presencasBruta = colunas.getOrNull(1)?.split(",") ?: emptyList()
+                        val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
+                        val dataNasc = NormalizacaoUtils.normalizarDataNascimento(colunas.getOrNull(2))
+                        val tel = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(3))
+                        val nomeResp = NormalizacaoUtils.normalizarNome(colunas.getOrNull(4)).ifBlank { null }
+                        val telResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(5))
 
-                        val presencasLista = presencasBruta.map {
-                            it.trim() == "O"
-                        }
-
-                        val presencas = mutableListOf<Presenca>()
-                        val crismando = Crismando(nome = nome)
-
-                        crismandoDao.inserir(crismando)
-                        vendedorDao.inserirVendedor(
-                            Vendedor(crismando.crismandoId, TipoVendedor.CRISMANDO)
+                        val crismando = Crismando(
+                            nome = nome,
+                            fotoUrl = fotoUrl,
+                            dataNascimento = dataNasc,
+                            telefone = tel,
+                            nomeResponsavel = nomeResp,
+                            telefoneResponsavel = telResp
                         )
 
-                        for (i in datasLista.indices) {
-                            presencas.add(
-                                Presenca(
-                                    crismandoId = crismando.crismandoId,
-                                    datasLista[i],
-                                    presencasLista[i]
-                                )
+                        val crismandoId = crismandoDao.inserir(crismando)
+
+                        vendedorDao.inserirVendedor(
+                            Vendedor(vendedorId = crismandoId, tipo = TipoVendedor.CRISMANDO)
+                        )
+
+                        // Coleta as presenças marcadas para cada domingo (ou seta false se vazio)
+                        val presencasColunas = if (colunas.size > 6) colunas.drop(6) else emptyList()
+
+                        val listaPresencas = datasLista.mapIndexed { index, dataIso ->
+                            val valor = presencasColunas.getOrNull(index)?.trim()?.uppercase()
+                            val estaPresente = valor in setOf("O", "P", "1", "TRUE", "SIM", "X", "PRESENTE")
+
+                            Presenca(
+                                crismandoId = crismandoId,
+                                data = dataIso,
+                                estaPresente = estaPresente
                             )
                         }
 
-                        presencaDao.gerarListaPresenca(presencas)
+                        if (listaPresencas.isNotEmpty()) {
+                            presencaDao.gerarListaPresenca(listaPresencas)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -325,27 +345,6 @@ class MainViewModel(
                 nomeExterno = nome
             )
             vendedorDao.inserirVendedor(vendedor)
-        }
-    }
-
-    fun popularRifasProvisorio() {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (rifaDao.contarRifas() == 0) {
-                val listaRifas = (1..1000).map { i ->
-                    val bloco = ((i - 1) / 10) + 1
-                    Rifa(
-                        numero = i,
-                        bloco = bloco,
-                        vendedorId = null,
-                        estaPaga = false,
-                        nomeComprador = null
-                    )
-                }
-                rifaDao.inserirRifas(listaRifas)
-                println("RIFAS: 1000 rifas geradas com sucesso!")
-            } else {
-                println("RIFAS: Banco já está populado.")
-            }
         }
     }
 
@@ -408,7 +407,6 @@ class MainViewModel(
         }
     }
 
-    // Gera N novos blocos completos (10 rifas cada)
     fun gerarBlocosEmLote(quantidadeBlocos: Int) {
         if (quantidadeBlocos <= 0) return
         viewModelScope.launch(Dispatchers.IO) {
@@ -430,7 +428,6 @@ class MainViewModel(
         }
     }
 
-    // Exclui os N últimos blocos completos
     fun excluirUltimosBlocos(
         quantidadeBlocos: Int,
         forcar: Boolean = false,

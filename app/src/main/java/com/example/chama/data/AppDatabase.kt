@@ -4,23 +4,15 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.chama.BuildConfig
 import com.example.chama.data.dao.CrismandoDao
-import com.example.chama.data.entity.Crismando
-import com.example.chama.data.entity.Presenca
 import com.example.chama.data.dao.PresencaDao
 import com.example.chama.data.dao.RifaDao
 import com.example.chama.data.dao.VendedorDao
+import com.example.chama.data.entity.Crismando
+import com.example.chama.data.entity.Presenca
 import com.example.chama.data.entity.Rifa
 import com.example.chama.data.entity.Vendedor
-import com.example.chama.utils.TipoVendedor
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Database(
     entities = [Crismando::class, Presenca::class, Vendedor::class, Rifa::class],
@@ -37,99 +29,21 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context, scope: CoroutineScope = CoroutineScope(Dispatchers.IO)): AppDatabase {
+        fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val dbName = if (BuildConfig.FLAVOR == "dev") "chama_dev.db" else "chama.db"
 
-                val builder = Room.databaseBuilder(
+                val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     dbName
-                ).fallbackToDestructiveMigration()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
 
-                if (BuildConfig.FLAVOR == "dev") {
-                    builder.addCallback(object : RoomDatabase.Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            scope.launch(Dispatchers.IO) {
-                                INSTANCE?.let { database ->
-                                    popularBancoDev(context, database)
-                                }
-                            }
-                        }
-                    })
-                }
-
-                val instance = builder.build()
                 INSTANCE = instance
                 instance
             }
         }
-
-        private suspend fun popularBancoDev(context: Context, database: AppDatabase) = withContext(Dispatchers.IO) {
-            try {
-                context.assets.open("mock_dados.csv").use { inputStream ->
-                    val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
-                    val reader = inputStream.bufferedReader()
-                    val linhas = reader.readLines()
-                    if (linhas.isEmpty()) return@withContext
-
-                    // Separa em 7 partes para isolar as datas na 7ª coluna (índice 6)
-                    val colunasCabecalho = linhas[0].split(",", limit = 7)
-                    val datasBruta = colunasCabecalho.getOrNull(6)?.split(",") ?: emptyList()
-                    val datasLista = datasBruta.map { dataString ->
-                        LocalDate.parse(dataString.trim(), formatter).toString()
-                    }
-
-                    val crismandoDao = database.crismandoDao()
-                    val vendedorDao = database.vendedorDao()
-                    val presencaDao = database.presencaDao()
-
-                    linhas.drop(1).filter { it.isNotBlank() }.forEach { linha ->
-                        // Separa os dados de cada crismando em 7 partes
-                        val colunas = linha.split(",", limit = 7)
-                        val nome = colunas[0].trim()
-                        val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
-                        val dataNascimento = colunas.getOrNull(2)?.trim()?.ifBlank { null }
-                        val telefone = colunas.getOrNull(3)?.trim()?.ifBlank { null }
-                        val nomeResponsavel = colunas.getOrNull(4)?.trim()?.ifBlank { null }
-                        val telefoneResponsavel = colunas.getOrNull(5)?.trim()?.ifBlank { null }
-                        val presencasBruta = colunas.getOrNull(6)?.split(",") ?: emptyList()
-                        val presencasLista = presencasBruta.map { it.trim() == "O" }
-
-                        val crismando = Crismando(
-                            nome = nome,
-                            fotoUrl = fotoUrl,
-                            dataNascimento = dataNascimento,
-                            telefone = telefone,
-                            nomeResponsavel = nomeResponsavel,
-                            telefoneResponsavel = telefoneResponsavel
-                        )
-                        val crismandoId = crismandoDao.inserir(crismando)
-
-                        vendedorDao.inserirVendedor(
-                            Vendedor(vendedorId = crismandoId, tipo = TipoVendedor.CRISMANDO)
-                        )
-
-                        val presencas = mutableListOf<Presenca>()
-                        for (i in datasLista.indices) {
-                            val presente = presencasLista.getOrElse(i) { false }
-                            presencas.add(
-                                Presenca(
-                                    crismandoId = crismandoId,
-                                    data = datasLista[i],
-                                    estaPresente = presente
-                                )
-                            )
-                        }
-
-                        presencaDao.gerarListaPresenca(presencas)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
 }
-
