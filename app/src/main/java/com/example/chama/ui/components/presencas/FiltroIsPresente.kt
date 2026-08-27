@@ -18,21 +18,22 @@ import com.example.chama.ui.MainViewModel
 @Composable
 fun SeletorDeFiltroPresencaEAcoes(
     viewModel: MainViewModel,
-    modifier: Modifier
-){
+    modifier: Modifier = Modifier
+) {
     val filtroSelecionado by viewModel.filtroPresencaSelecionado
     val totalPresentes by viewModel.totalPresentes.collectAsState()
     val totalAusentes by viewModel.totalAusentes.collectAsState()
 
-
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         FiltroBtn(
             label = "Todos",
             icone = null,
-            selecionado = filtroSelecionado == FiltroPresenca.TODOS
+            selecionado = filtroSelecionado == FiltroPresenca.TODOS,
+            modifier = Modifier.weight(1f) // Divide o espaço igualmente
         ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.TODOS)
         }
@@ -40,7 +41,8 @@ fun SeletorDeFiltroPresencaEAcoes(
         FiltroBtn(
             label = " ($totalPresentes)",
             icone = Icons.Default.CheckCircle,
-            selecionado = filtroSelecionado == FiltroPresenca.PRESENTES
+            selecionado = filtroSelecionado == FiltroPresenca.PRESENTES,
+            modifier = Modifier.weight(1f) // Divide o espaço igualmente
         ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.PRESENTES)
         }
@@ -48,13 +50,13 @@ fun SeletorDeFiltroPresencaEAcoes(
         FiltroBtn(
             label = " ($totalAusentes)",
             icone = Icons.Default.Close,
-            selecionado = filtroSelecionado == FiltroPresenca.AUSENTES
+            selecionado = filtroSelecionado == FiltroPresenca.AUSENTES,
+            modifier = Modifier.weight(1f) // Divide o espaço igualmente
         ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.AUSENTES)
         }
 
-        PresencasImportExport(viewModel)
-
+        // Mantém tamanho fixo
+        PresencasExport(viewModel)
     }
 }
-

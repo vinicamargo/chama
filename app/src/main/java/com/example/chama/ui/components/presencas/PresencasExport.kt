@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Input
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -27,36 +26,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
-fun PresencasImportExport(viewModel: MainViewModel){
+fun PresencasExport(viewModel: MainViewModel){
 
     val context = LocalContext.current
-
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            viewModel.importarDadosCsv(context, it)
-        }
-    }
-
-    FilledTonalIconButton(
-        onClick = {
-            importLauncher.launch("text/*")
-        },
-        shape = RoundedCornerShape(6.dp),
-        colors = IconButtonDefaults.filledTonalIconButtonColors(
-            containerColor = Color(0x9C1C6914),
-            contentColor = Color.White
-        )
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Input,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-    }
 
     FilledTonalIconButton(
         onClick = {

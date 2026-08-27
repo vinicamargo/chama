@@ -1,6 +1,8 @@
 package com.example.chama.ui.screens
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -55,44 +59,77 @@ fun TelaPrincipal(
     val buttonBorderColor = Color(0x66FFFFFF)
     val buttonShape = RoundedCornerShape(26.dp)
 
+    // Launcher para selecionar arquivo CSV do backup
+    val csvPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importarDadosCsv(context, it) }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(solidRedBackground)
     ) {
-        // Ícone discreto de Export/Backup no topo
-        IconButton(
-            onClick = {
-                viewModel.viewModelScope.launch(Dispatchers.IO) {
-                    val dadosCsv = viewModel.exportarBackupCompletoCSV()
-
-                    val file = File(context.cacheDir, "backup_geral_chama.csv")
-                    file.writeText(dadosCsv, charset = Charsets.UTF_8)
-
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.provider",
-                        file
-                    )
-
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/csv"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Compartilhar Backup Geral"))
-                }
-            },
+        // Ícones de Ações no Canto Superior Direito (Importar e Exportar)
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 40.dp, end = 16.dp)
+                .padding(top = 40.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                contentDescription = "Exportar Backup Completo",
-                tint = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.size(28.dp)
-            )
+            // Botão de Importar Backup
+            IconButton(
+                onClick = {
+                    csvPickerLauncher.launch(
+                        arrayOf(
+                            "text/csv",
+                            "text/comma-separated-values",
+                            "application/csv",
+                            "*/*"
+                        )
+                    )
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FileDownload,
+                    contentDescription = "Importar Backup CSV",
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Botão de Exportar Backup
+            IconButton(
+                onClick = {
+                    viewModel.viewModelScope.launch(Dispatchers.IO) {
+                        val dadosCsv = viewModel.exportarBackupCompletoCSV()
+
+                        val file = File(context.cacheDir, "backup_geral_chama.csv")
+                        file.writeText(dadosCsv, charset = Charsets.UTF_8)
+
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.provider",
+                            file
+                        )
+
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Compartilhar Backup Geral"))
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = "Exportar Backup CSV",
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
 
         // Conteúdo central da tela
@@ -145,7 +182,6 @@ fun TelaPrincipal(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Botão 1: Lista de Presença
                 Button(
                     onClick = onIrParaLista,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
@@ -171,7 +207,6 @@ fun TelaPrincipal(
                     }
                 }
 
-                // Botão 2: Gestão de Rifas
                 Button(
                     onClick = onIrParaRifas,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
