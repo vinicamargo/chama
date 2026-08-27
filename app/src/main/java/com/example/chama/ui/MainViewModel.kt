@@ -43,7 +43,7 @@ class MainViewModel(
     private val rifaDao: RifaDao
 ) : ViewModel() {
 
-    val dataDeHoje = LocalDate.of(2026, 9, 27)
+    val dataDeHoje = LocalDate.of(2026, 11, 27)
 
     val diaSelecionado = MutableStateFlow("")
 
@@ -54,7 +54,7 @@ class MainViewModel(
         viewModelScope.launch {
             diasComChamada.collect { dias ->
                 if (dias.isNotEmpty()) {
-                    val ultimoDomingo = LocalDate.now()
+                    val ultimoDomingo = dataDeHoje
                         .with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
                         .toString()
 
