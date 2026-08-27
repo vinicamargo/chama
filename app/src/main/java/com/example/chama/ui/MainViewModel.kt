@@ -370,23 +370,54 @@ class MainViewModel(
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     val reader = inputStream.bufferedReader()
                     val linhas = reader.readLines().filter { it.isNotBlank() }
-                    if (linhas.isEmpty()) return@use
+                    if (linhas.size <= 1) return@use
 
+                    val cabecalho = parseCsvLine(linhas[0])
                     val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
-                    val cabecalhoColunas = linhas[0].split(",")
-                    if (cabecalhoColunas.size <= 6) return@use
-
-                    val datasLista = cabecalhoColunas.drop(6).mapNotNull { dataStr ->
-                        runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
+                    // As datas iniciam na 8ª coluna (índice 7)
+                    val datasLista = if (cabecalho.size > 7) {
+                        cabecalho.drop(7).mapNotNull { dataStr ->
+                            runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
+                        }
+                    } else {
+                        emptyList()
                     }
 
-                    if (datasLista.isEmpty()) return@use
+                    // 1. Pré-leitura: Descobre o maior bloco citado no CSV
+                    val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
+                    var maiorBloco = 0
+                    linhasDados.forEach { colunas ->
+                        val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                        if (blocosTexto.isNotBlank()) {
+                            val nums = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
+                            val maxLinha = nums.maxOrNull() ?: 0
+                            if (maxLinha > maiorBloco) {
+                                maiorBloco = maxLinha
+                            }
+                        }
+                    }
 
+                    // 2. Limpa banco de dados anterior
                     limparDatabase()
 
-                    linhas.drop(1).forEach { linha ->
-                        val colunas = linha.split(",")
+                    // 3. Se houver blocos, gera todos de 1 até o maiorBloco
+                    if (maiorBloco > 0) {
+                        val totalRifas = maiorBloco * 10
+                        val listaRifasIniciais = (1..totalRifas).map { numero ->
+                            val numBloco = ((numero - 1) / 10) + 1
+                            Rifa(
+                                numero = numero,
+                                bloco = numBloco,
+                                estaPaga = false,
+                                vendedorId = null
+                            )
+                        }
+                        rifaDao.inserirRifas(listaRifasIniciais)
+                    }
+
+                    // 4. Cadastra crismandos, vincula blocos e registra presenças
+                    linhasDados.forEach { colunas ->
                         val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
                         if (nome.isBlank()) return@forEach
 
@@ -405,21 +436,32 @@ class MainViewModel(
                             telefoneResponsavel = telResp
                         )
 
-                        val crismandoId = crismandoDao.inserir(crismando)
+                        val novoId = crismandoDao.inserir(crismando)
 
                         vendedorDao.inserirVendedor(
-                            Vendedor(vendedorId = crismandoId, tipo = TipoVendedor.CRISMANDO)
+                            Vendedor(vendedorId = novoId, tipo = TipoVendedor.CRISMANDO)
                         )
 
-                        // Coleta as presenças marcadas para cada domingo (ou seta false se vazio)
-                        val presencasColunas = if (colunas.size > 6) colunas.drop(6) else emptyList()
+                        // Vincula os blocos do crismando (se preenchidos)
+                        val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                        if (blocosTexto.isNotBlank()) {
+                            val blocosDoCrismando = blocosTexto
+                                .split(";", ",")
+                                .mapNotNull { it.trim().toIntOrNull() }
 
+                            blocosDoCrismando.forEach { numBloco ->
+                                rifaDao.vincularVendedorAoBloco(novoId, numBloco)
+                            }
+                        }
+
+                        // Registra presenças das datas (iniciando no índice 7)
+                        val presencasColunas = if (colunas.size > 7) colunas.drop(7) else emptyList()
                         val listaPresencas = datasLista.mapIndexed { index, dataIso ->
-                            val valor = presencasColunas.getOrNull(index)?.trim()?.uppercase()
-                            val estaPresente = valor in setOf("O", "P", "1", "TRUE", "SIM", "X", "PRESENTE")
+                            val valorBruto = presencasColunas.getOrNull(index)
+                            val estaPresente = NormalizacaoUtils.normalizarPresenca(valorBruto)
 
                             Presenca(
-                                crismandoId = crismandoId,
+                                crismandoId = novoId,
                                 data = dataIso,
                                 estaPresente = estaPresente
                             )
@@ -434,6 +476,25 @@ class MainViewModel(
                 e.printStackTrace()
             }
         }
+    }
+
+    private fun parseCsvLine(linha: String): List<String> {
+        val colunas = mutableListOf<String>()
+        var dentroDeAspas = false
+        val sb = StringBuilder()
+
+        for (ch in linha) {
+            when {
+                ch == '\"' -> dentroDeAspas = !dentroDeAspas
+                ch == ',' && !dentroDeAspas -> {
+                    colunas.add(sb.toString().trim().removeSurrounding("\""))
+                    sb.clear()
+                }
+                else -> sb.append(ch)
+            }
+        }
+        colunas.add(sb.toString().trim().removeSurrounding("\""))
+        return colunas
     }
 
     fun registrarVendedor(nome: String, tipoVendedor: TipoVendedor) {
