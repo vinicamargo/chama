@@ -43,6 +43,8 @@ class MainViewModel(
     private val rifaDao: RifaDao
 ) : ViewModel() {
 
+    val dataDeHoje = LocalDate.of(2026, 9, 27)
+
     val diaSelecionado = MutableStateFlow("")
 
     val diasComChamada: StateFlow<List<String>> = presencaDao.buscarDiasComPresencas()

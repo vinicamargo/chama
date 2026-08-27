@@ -261,9 +261,9 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             .distinct()
                     }
 
-                    val hoje = LocalDate.now()
+                    val dataDeHoje = viewModel.dataDeHoje
                     val datasAteHoje = remember(diasComChamada) {
-                        diasComChamada//.filter { runCatching { LocalDate.parse(it) <= hoje }.getOrDefault(false) }
+                        diasComChamada.filter { runCatching { LocalDate.parse(it) <= dataDeHoje }.getOrDefault(false) }
                     }
 
                     val presencasDoCrismando = remember(todasPresencas, crismando, datasAteHoje) {

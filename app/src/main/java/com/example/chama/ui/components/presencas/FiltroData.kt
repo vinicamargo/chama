@@ -32,10 +32,10 @@ fun SeletorDeFiltroData(
     val diasDeCrismaStrings by viewModel.diasComChamada.collectAsState(initial = emptyList())
     val diaSelecionadoString by viewModel.diaSelecionado.collectAsState()
 
-    val diasDeCrisma = remember(diasDeCrismaStrings) {
+    val diasDeCrisma = remember(diasDeCrismaStrings, viewModel.dataDeHoje) {
         diasDeCrismaStrings.mapNotNull {
             runCatching { LocalDate.parse(it) }.getOrNull()
-        }
+        }.filter { it <= viewModel.dataDeHoje }.sorted()
     }
 
     val formatter = remember {
