@@ -1,5 +1,6 @@
 package com.example.chama.ui.screens
 
+import com.example.chama.ui.components.gerencial.CardFaixaEtaria
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -28,10 +29,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,7 +53,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,6 +63,7 @@ import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.presencas.DetalhesCrismando
 import java.time.LocalDate
 import java.time.Period
+
 
 data class CrismandoFaltasInfo(
     val crismando: Crismando,
@@ -233,8 +232,8 @@ fun TelaPainelGerencial(
 
                 // Faixas Etárias
                 CardFaixaEtaria(
-                    distribuicaoIdades = distribuicaoIdades,
-                    total = totalCrismandos
+                    crismandos = crismandos,
+                    onCrismandoClick = { crismandoDetalhes = it }
                 )
 
                 // Gênero
@@ -625,69 +624,6 @@ fun CardCrismandosPorFaltas(
                             )
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CardFaixaEtaria(
-    distribuicaoIdades: Map<String, Int>,
-    total: Int,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = "Distribuição por Faixa Etária",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            distribuicaoIdades.forEach { (faixa, quantidade) ->
-                val porcentagem = if (total > 0) quantidade.toFloat() / total.toFloat() else 0f
-
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = faixa,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "$quantidade (${(porcentagem * 100).toInt()}%)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    LinearProgressIndicator(
-                        progress = { porcentagem.coerceIn(0f, 1f) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        drawStopIndicator = {}
-                    )
                 }
             }
         }
