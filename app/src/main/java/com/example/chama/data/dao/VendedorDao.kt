@@ -19,4 +19,6 @@ interface VendedorDao {
     @Query("DELETE FROM vendedores WHERE tipo = 'CRISMANDO'")
     fun deletarVendedoresCRISMANDO()
 
+    @Query("DELETE FROM vendedores WHERE vendedorId = :vendedorId")
+    fun deletarVendedorPorId(vendedorId: Long)
 }

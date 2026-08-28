@@ -14,6 +14,9 @@ interface PresencaDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun gerarListaPresenca(presencas: List<Presenca>)
 
+    @Query("SELECT * FROM presencas")
+    fun buscarTodasAsPresencas(): Flow<List<Presenca>>
+
     @Query("SELECT * FROM presencas WHERE data = :data")
     fun buscarPresencasPorData(data: String): Flow<List<Presenca>>
 
@@ -28,6 +31,9 @@ interface PresencaDao {
 
     @Query("UPDATE presencas SET estaPresente = :status WHERE crismandoId = :crismandoId AND data = :data")
     fun atualizarPresenca(crismandoId: Long, data: String, status: Boolean)
+
+    @Query("DELETE FROM presencas WHERE crismandoId = :crismandoId")
+    fun deletarPresencasPorCrismando(crismandoId: Long)
 
     @Query("DELETE FROM presencas")
     fun deleteAllPresencas()
