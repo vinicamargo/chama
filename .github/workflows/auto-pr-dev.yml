@@ -1,4 +1,4 @@
-name: Auto Create PR to Dev
+name: Auto Create PR to Develop
 
 on:
   push:
@@ -16,13 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Open Pull Request to dev
+      - name: Open Pull Request to develop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH_NAME="${GITHUB_REF_NAME}"
           
-          PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --base "dev" --state open --json number --jq 'length')
+          PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --base "develop" --state open --json number --jq 'length')
           
           if [ "$PR_EXISTS" -eq "0" ]; then
             gh pr create \
