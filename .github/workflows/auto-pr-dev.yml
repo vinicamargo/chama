@@ -26,7 +26,7 @@ jobs:
           
           if [ "$PR_EXISTS" -eq "0" ]; then
             gh pr create \
-              --base "dev" \
+              --base "develop" \
               --head "$BRANCH_NAME" \
               --title "feat: $BRANCH_NAME" \
               --body "Pull Request gerado automaticamente pelo GitHub Actions a partir da branch \`$BRANCH_NAME\` para revisão e integração em \`dev\`."
