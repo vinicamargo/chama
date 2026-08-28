@@ -60,8 +60,8 @@ import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
 import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
-import com.example.chama.ui.components.presencas.SeletorDeFiltroData
-import com.example.chama.ui.components.presencas.SeletorDeFiltroPresencaEAcoes
+import com.example.chama.ui.components.presencas.FiltroData
+import com.example.chama.ui.components.presencas.FiltroPresenca
 import com.example.chama.utils.DataVisualTransformation
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -172,14 +172,14 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                SeletorDeFiltroData(
+                FiltroData(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                SeletorDeFiltroPresencaEAcoes(
+                FiltroPresenca(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxWidth()
                 )

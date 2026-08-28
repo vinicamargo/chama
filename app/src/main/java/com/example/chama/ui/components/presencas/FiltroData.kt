@@ -25,7 +25,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SeletorDeFiltroData(
+fun FiltroData(
     viewModel: MainViewModel,
     modifier: Modifier
 ) {
