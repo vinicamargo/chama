@@ -18,6 +18,7 @@ plugins {
     id("com.google.devtools.ksp") version "2.3.2"
 }
 
+
 android {
     namespace = "com.example.chama"
     compileSdk = 36
