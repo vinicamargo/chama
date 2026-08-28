@@ -45,8 +45,8 @@ class MainViewModel(
     private val rifaDao: RifaDao
 ) : ViewModel() {
 
-    val dataDeHoje: LocalDate = if (BuildConfig.FLAVOR == "dev") {
-        LocalDate.of(2026, 12, 2)
+    val dataDeHoje: LocalDate = if (BuildConfig.DATA_CORTE_MOCK.isNotBlank()) {
+        runCatching { LocalDate.parse(BuildConfig.DATA_CORTE_MOCK) }.getOrDefault(LocalDate.now())
     } else {
         LocalDate.now()
     }

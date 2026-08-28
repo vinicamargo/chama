@@ -147,7 +147,7 @@ fun TelaPrincipal(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(230.dp)
-                    .padding(top = 8.dp, bottom = 4.dp)
+                    .padding(top = 8.dp, bottom = 8.dp)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -164,7 +164,7 @@ fun TelaPrincipal(
                 text = "Gerenciador da catequese de crisma",
                 fontSize = 19.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 2.dp),
+                modifier = Modifier.padding(top = 4.dp),
                 fontFamily = GermaniaOne,
                 color = Color.White.copy(alpha = 0.95f)
             )
@@ -173,7 +173,7 @@ fun TelaPrincipal(
                 text = "2026/2027",
                 fontSize = 17.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 2.dp, bottom = 24.dp),
+                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
                 fontFamily = GermaniaOne,
                 color = Color.White.copy(alpha = 0.85f)
             )
