@@ -59,7 +59,7 @@ import com.example.chama.data.entity.Crismando
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
-import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
+import com.example.chama.ui.components.presencas.DetalhesCrismando
 import com.example.chama.ui.components.presencas.FiltroData
 import com.example.chama.ui.components.presencas.FiltroPresenca
 import com.example.chama.utils.DataVisualTransformation
@@ -279,7 +279,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        DetalhesCrismandoExpandido(
+                        DetalhesCrismando(
                             crismando = crismando,
                             blocosVinculados = blocos,
                             totalFaltas = totalFaltas,

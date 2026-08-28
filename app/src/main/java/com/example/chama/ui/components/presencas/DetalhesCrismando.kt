@@ -87,7 +87,7 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DetalhesCrismandoExpandido(
+fun DetalhesCrismando(
     modifier: Modifier = Modifier,
     crismando: Crismando,
     blocosVinculados: List<Int> = emptyList(),
@@ -193,14 +193,6 @@ fun DetalhesCrismandoExpandido(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-
-                IconButton(onClick = { showEditarDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Editar Crismando",
-                        tint = corDestaque
-                    )
-                }
 
                 IconButton(onClick = onFechar) {
                     Icon(

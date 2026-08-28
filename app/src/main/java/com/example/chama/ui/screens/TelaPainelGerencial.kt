@@ -60,7 +60,7 @@ import coil.compose.AsyncImage
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
-import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
+import com.example.chama.ui.components.presencas.DetalhesCrismando
 import java.time.LocalDate
 import java.time.Period
 
@@ -138,11 +138,13 @@ fun TelaPainelGerencial(
         listaCrismandosComFaltas.maxOfOrNull { it.totalFaltas } ?: 0
     }
 
+    // Distribuição de Idades com Faixas 20-25 e 26+ (condicional)
     val distribuicaoIdades = remember(crismandos) {
         var faixa13_15 = 0
         var faixa16_17 = 0
         var faixa18_20 = 0
-        var faixa20Mais = 0
+        var faixa20_25 = 0
+        var faixa26Mais = 0
 
         for (c in crismandos) {
             val idade = runCatching {
@@ -153,21 +155,25 @@ fun TelaPainelGerencial(
             }.getOrNull() ?: c.idade
 
             if (idade != null) {
-                when (idade) {
-                    in 13..15 -> faixa13_15++
-                    in 16..17 -> faixa16_17++
-                    in 18..20 -> faixa18_20++
-                    else -> if (idade > 20) faixa20Mais++
+                when {
+                    idade in 13..15 -> faixa13_15++
+                    idade in 16..17 -> faixa16_17++
+                    idade in 18..20 -> faixa18_20++
+                    idade in 21..25 -> faixa20_25++
+                    idade >= 26 -> faixa26Mais++
                 }
             }
         }
 
-        mapOf(
-            "13 - 15 anos" to faixa13_15,
-            "16 - 17 anos" to faixa16_17,
-            "18 - 20 anos" to faixa18_20,
-            "20+ anos" to faixa20Mais
-        )
+        buildMap {
+            put("13 - 15 anos", faixa13_15)
+            put("16 - 17 anos", faixa16_17)
+            put("18 - 20 anos", faixa18_20)
+            put("20 - 25 anos", faixa20_25)
+            if (faixa26Mais > 0) {
+                put("26+ anos", faixa26Mais)
+            }
+        }
     }
 
     val totalMeninos = remember(crismandos) {
@@ -235,7 +241,6 @@ fun TelaPainelGerencial(
                 )
             }
 
-            // Modal reaproveitado de Detalhes Expandidos
             AnimatedVisibility(
                 visible = crismandoDetalhes != null,
                 enter = scaleIn(initialScale = 0.85f) + fadeIn(),
@@ -259,7 +264,7 @@ fun TelaPainelGerencial(
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        DetalhesCrismandoExpandido(
+                        DetalhesCrismando(
                             crismando = crismando,
                             blocosVinculados = blocos,
                             totalFaltas = totalFaltas,
@@ -292,7 +297,6 @@ fun CardCrismandosPorFaltas(
 ) {
     var expandido by remember { mutableStateOf(false) }
 
-    // Ordena do maior para o menor número de faltas e filtra apenas quem faltou pelo menos 1 vez
     val listaOrdenadaFaltosos = remember(lista) {
         lista.filter { it.totalFaltas > 0 }
             .sortedByDescending { it.totalFaltas }
@@ -691,7 +695,6 @@ fun CardDistribuicaoGenero(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Masculino
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -716,7 +719,6 @@ fun CardDistribuicaoGenero(
                 )
             }
 
-            // Feminino
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

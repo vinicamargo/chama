@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.chama.BuildConfig
 import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.dao.CrismandoDao
@@ -44,7 +45,11 @@ class MainViewModel(
     private val rifaDao: RifaDao
 ) : ViewModel() {
 
-    val dataDeHoje = LocalDate.of(2026, 12, 2)
+    val dataDeHoje: LocalDate = if (BuildConfig.FLAVOR == "dev") {
+        LocalDate.of(2026, 12, 2)
+    } else {
+        LocalDate.now()
+    }
 
     val diaSelecionado = MutableStateFlow("")
 
