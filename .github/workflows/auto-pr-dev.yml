@@ -28,7 +28,7 @@ jobs:
             gh pr create \
               --base "develop" \
               --head "$BRANCH_NAME" \
-              --title "feat: $BRANCH_NAME" \
+              --title "$BRANCH_NAME -> develop" \
               --body "Pull Request gerado automaticamente pelo GitHub Actions a partir da branch \`$BRANCH_NAME\` para revisão e integração em \`dev\`."
             echo "PR criado com sucesso!"
           else
