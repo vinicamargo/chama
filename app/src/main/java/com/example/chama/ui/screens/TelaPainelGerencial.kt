@@ -8,7 +8,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,8 +33,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.chama.data.entity.Crismando
+import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.presencas.DetalhesCrismandoExpandido
 import java.time.LocalDate
@@ -172,6 +170,13 @@ fun TelaPainelGerencial(
         )
     }
 
+    val totalMeninos = remember(crismandos) {
+        crismandos.count { it.genero == Genero.MASCULINO }
+    }
+    val totalMeninas = remember(crismandos) {
+        crismandos.count { it.genero == Genero.FEMININO }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -220,6 +225,12 @@ fun TelaPainelGerencial(
 
                 CardFaixaEtaria(
                     distribuicaoIdades = distribuicaoIdades,
+                    total = totalCrismandos
+                )
+
+                CardDistribuicaoGenero(
+                    totalMeninos = totalMeninos,
+                    totalMeninas = totalMeninas,
                     total = totalCrismandos
                 )
             }
@@ -645,6 +656,89 @@ fun CardFaixaEtaria(
                         drawStopIndicator = {}
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun CardDistribuicaoGenero(
+    totalMeninos: Int,
+    totalMeninas: Int,
+    total: Int,
+    modifier: Modifier = Modifier
+) {
+    val percMeninos = if (total > 0) totalMeninos.toFloat() / total else 0f
+    val percMeninas = if (total > 0) totalMeninas.toFloat() / total else 0f
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "Distribuição por Gênero",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Masculino
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Masculino", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "$totalMeninos (${(percMeninos * 100).toInt()}%)",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E88E5)
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { percMeninos },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = Color(0xFF1E88E5),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    drawStopIndicator = {}
+                )
+            }
+
+            // Feminino
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Feminino", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "$totalMeninas (${(percMeninas * 100).toInt()}%)",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE91E63)
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { percMeninas },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = Color(0xFFE91E63),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    drawStopIndicator = {}
+                )
             }
         }
     }
