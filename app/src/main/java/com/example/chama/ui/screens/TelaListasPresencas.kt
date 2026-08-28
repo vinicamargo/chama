@@ -169,8 +169,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
-                    .padding(top = 16.dp),
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 SeletorDeFiltroData(

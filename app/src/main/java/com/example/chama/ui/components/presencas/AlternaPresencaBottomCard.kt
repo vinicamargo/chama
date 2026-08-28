@@ -32,7 +32,10 @@ fun ConfirmacaoBottomCard(
     modifier: Modifier = Modifier
 ) {
     val corCard = if (isCrismandoPresente)
-        Color(0xFFFD5858) else Color(0xFFB2FFAD)
+        Color(0xFFFD5858) else Color(0xFF0DBB05)
+
+    val corBotaoConfirmar = if (isCrismandoPresente)
+        Color(0xFF9F2525) else Color(0xFF1A6511)
 
     val stringAcao = if (isCrismandoPresente)
         "Desmarcar presença" else "Marcar presença"
@@ -80,7 +83,7 @@ fun ConfirmacaoBottomCard(
                     onClick = onConfirmar,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = corCard
+                        containerColor = corBotaoConfirmar
                     )
                 ) {
                     Text("Confirmar")

@@ -92,6 +92,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DetalhesCrismandoExpandido(
+    modifier: Modifier = Modifier,
     crismando: Crismando,
     blocosVinculados: List<Int> = emptyList(),
     totalFaltas: Int = 0,
@@ -101,8 +102,7 @@ fun DetalhesCrismandoExpandido(
     corDestaque: Color = MaterialTheme.colorScheme.primary,
     onFechar: () -> Unit,
     onExcluir: (Crismando) -> Unit,
-    onAtualizar: (Crismando) -> Unit,
-    modifier: Modifier = Modifier
+    onAtualizar: (Crismando) -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
