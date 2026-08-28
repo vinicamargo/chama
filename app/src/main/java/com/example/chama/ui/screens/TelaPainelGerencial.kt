@@ -228,7 +228,7 @@ fun TelaPainelGerencial(
                     mediaFaltasPorEncontro = metricasGerais.mediaFaltas
                 )
 
-                // Top 5 / Todos com Faltas
+                // Top 5 Faltas / Todos com Faltas
                 CardCrismandosPorFaltas(
                     lista = listaCrismandosComFaltas,
                     onCrismandoClick = { crismandoDetalhes = it }
