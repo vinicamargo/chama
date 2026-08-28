@@ -1,5 +1,6 @@
 package com.example.chama.ui.components.presencas
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,10 @@ fun ConfirmacaoBottomCard(
     modifier: Modifier = Modifier
 ) {
     val corCard = if (isCrismandoPresente)
-        Color(0xFFFD5858) else Color(0xFFB2FFAD)
+        Color(0xFFFD5858) else Color(0xFF0DBB05)
+
+    val corBotaoConfirmar = if (isCrismandoPresente)
+        Color(0xFF9F2525) else Color(0xFF1A6511)
 
     val stringAcao = if (isCrismandoPresente)
         "Desmarcar presença" else "Marcar presença"
@@ -45,7 +49,8 @@ fun ConfirmacaoBottomCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -78,7 +83,7 @@ fun ConfirmacaoBottomCard(
                     onClick = onConfirmar,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = corCard
+                        containerColor = corBotaoConfirmar
                     )
                 ) {
                     Text("Confirmar")

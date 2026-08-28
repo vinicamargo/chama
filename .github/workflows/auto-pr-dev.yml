@@ -1,0 +1,36 @@
+name: Auto Create PR to Develop
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'feature-*'
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Open Pull Request to develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          
+          PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --base "develop" --state open --json number --jq 'length')
+          
+          if [ "$PR_EXISTS" -eq "0" ]; then
+            gh pr create \
+              --base "develop" \
+              --head "$BRANCH_NAME" \
+              --title "develop ← $BRANCH_NAME" \
+              --body "Pull Request gerado automaticamente pelo GitHub Actions a partir da branch \`$BRANCH_NAME\` para revisão e integração em \`dev\`."
+            echo "PR criado com sucesso!"
+          else
+            echo "PR já existe para esta branch. Nenhuma ação necessária."
+          fi

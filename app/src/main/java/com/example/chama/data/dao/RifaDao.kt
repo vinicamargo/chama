@@ -25,4 +25,32 @@ interface RifaDao {
     fun desvincularVendedorDoBloco(numBloco: Int)
     @Query("UPDATE rifas SET estaPaga = :estaPaga WHERE bloco = :bloco")
     fun atualizarPagamentoBloco (bloco: Int, estaPaga: Boolean)
+    @Query("UPDATE rifas SET vendedorId = NULL WHERE vendedorId = :vendedorId")
+    fun desvincularRifasDoVendedor(vendedorId: Long)
+
+    @Query("SELECT COALESCE(MAX(numero), 0) FROM rifas")
+    fun getMaiorNumeroRifa(): Int
+
+    // Exclui os N últimos blocos (e todas as suas rifas)
+    @Query("""
+    DELETE FROM rifas 
+    WHERE bloco IN (
+        SELECT DISTINCT bloco FROM rifas 
+        ORDER BY bloco DESC 
+        LIMIT :quantidadeBlocos
+    )
+""")
+    fun excluirUltimosBlocos(quantidadeBlocos: Int)
+
+    // Checa se nos N últimos blocos há alguma rifa já paga ou com vendedor
+    @Query("""
+    SELECT COUNT(*) FROM rifas 
+    WHERE (estaPaga = 1 OR vendedorId IS NOT NULL) 
+    AND bloco IN (
+        SELECT DISTINCT bloco FROM rifas 
+        ORDER BY bloco DESC 
+        LIMIT :quantidadeBlocos
+    )
+""")
+    fun contarRifasEmUsoNosUltimosBlocos(quantidadeBlocos: Int): Int
 }

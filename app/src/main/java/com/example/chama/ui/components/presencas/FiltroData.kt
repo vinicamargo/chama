@@ -12,35 +12,47 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.chama.ui.MainViewModel
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SeletorDeFiltroData(
+fun FiltroData(
     viewModel: MainViewModel,
     modifier: Modifier
 ) {
     val diasDeCrismaStrings by viewModel.diasComChamada.collectAsState(initial = emptyList())
+    val diaSelecionadoString by viewModel.diaSelecionado.collectAsState()
 
-    val diasDeCrisma = diasDeCrismaStrings.map { LocalDate.parse(it) }
+    val diasDeCrisma = remember(diasDeCrismaStrings, viewModel.dataDeHoje) {
+        diasDeCrismaStrings.mapNotNull {
+            runCatching { LocalDate.parse(it) }.getOrNull()
+        }.filter { it <= viewModel.dataDeHoje }.sorted()
+    }
 
-    val formatter = remember { DateTimeFormatter.ofPattern("dd 'de' MMMM 'de' yyyy") }
+    val formatter = remember {
+        DateTimeFormatter.ofPattern("dd 'de' MMMM 'de' yyyy", Locale("pt", "BR"))
+    }
 
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
-    var selectedOption by remember { mutableStateOf(
-        LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)).format(formatter)
-    ) }
+    val textoExibicao = remember(diaSelecionadoString) {
+        if (diaSelecionadoString.isNotBlank()) {
+            runCatching {
+                LocalDate.parse(diaSelecionadoString).format(formatter)
+            }.getOrDefault(diaSelecionadoString)
+        } else {
+            "Selecione uma data"
+        }
+    }
 
     ExposedDropdownMenuBox(
         expanded = isDropdownExpanded,
@@ -48,9 +60,10 @@ fun SeletorDeFiltroData(
         modifier = modifier.fillMaxWidth()
     ) {
         TextField(
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
                 .fillMaxWidth(),
-            value = selectedOption,
+            value = textoExibicao,
             onValueChange = {},
             readOnly = true,
             label = { Text("Data da lista") },
@@ -69,13 +82,11 @@ fun SeletorDeFiltroData(
             shape = RoundedCornerShape(12.dp)
         ) {
             diasDeCrisma.forEach { dataLocalDate ->
-
                 val dataFormatada = dataLocalDate.format(formatter)
 
                 DropdownMenuItem(
                     text = { Text(text = dataFormatada) },
                     onClick = {
-                        selectedOption = dataFormatada
                         isDropdownExpanded = false
                         viewModel.alterarData(dataLocalDate.toString())
                     }
@@ -84,4 +95,3 @@ fun SeletorDeFiltroData(
         }
     }
 }
-

@@ -1,0 +1,38 @@
+name: Auto Create PR to Main
+
+on:
+  push:
+    branches:
+      - 'develop'
+      - 'dev'
+
+jobs:
+  create-pull-request-to-main:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Open Pull Request to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          BASE_BRANCH="main"
+
+          PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --base "$BASE_BRANCH" --state open --json number --jq 'length' || echo "0")
+
+          if [ "$PR_EXISTS" = "0" ]; then
+            echo "Criando Pull Request da branch $BRANCH_NAME para $BASE_BRANCH..."
+            gh pr create \
+              --base "$BASE_BRANCH" \
+              --head "$BRANCH_NAME" \
+              --title "$BASE_BRANCH ← $BRANCH_NAME" \
+              --body "Pull Request gerado automaticamente pelo GitHub Actions a partir da branch \`$BRANCH_NAME\` para revisão e integração em \`$BASE_BRANCH\`." || echo "PR já existia ou nenhum commit novo a integrar."
+            echo "Processo concluído com sucesso!"
+          else
+            echo "Pull Request já está aberto para a branch $BRANCH_NAME. Nenhuma ação necessária."
+          fi

@@ -1,3 +1,15 @@
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+val mockHojeProp = localProperties.getProperty("MOCK_HOJE_DEV", "").replace("\"", "")
+val mockHojeDev = "\"$mockHojeProp\""
+
 val roomVersion = project.properties["roomVersion"].toString()
 
 plugins {
@@ -8,9 +20,7 @@ plugins {
 
 android {
     namespace = "com.example.chama"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.chama"
@@ -31,12 +41,32 @@ android {
             )
         }
     }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "CHAMA (DEV)")
+            buildConfigField("String", "DATA_CORTE_MOCK", mockHojeDev)
+        }
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "CHAMA")
+            buildConfigField("String", "DATA_CORTE_MOCK", "\"\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
+        resValues = true
+        buildConfig = true
     }
 }
 
@@ -62,11 +92,13 @@ dependencies {
     ksp("androidx.room:room-compiler:$roomVersion")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-
     implementation("androidx.navigation:navigation-compose:2.8.0")
-
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("androidx.compose.material:material-icons-extended:1.7.0")
+
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.vanniktech:android-image-cropper:4.6.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
