@@ -6,6 +6,10 @@ import java.time.LocalDate
 import java.time.Period
 import kotlin.random.Random
 
+enum class Genero {
+    MASCULINO, FEMININO
+}
+
 @Entity(tableName = "crismandos")
 data class Crismando (
     @PrimaryKey(autoGenerate = true)
@@ -15,7 +19,8 @@ data class Crismando (
     val dataNascimento: String? = null,
     val telefone: String? = null,
     val nomeResponsavel: String? = null,
-    val telefoneResponsavel: String? = null
+    val telefoneResponsavel: String? = null,
+    val genero: Genero? = null
 ) {
     val idade: Int?
         get() {

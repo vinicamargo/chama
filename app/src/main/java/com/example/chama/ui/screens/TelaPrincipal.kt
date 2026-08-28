@@ -50,7 +50,8 @@ import java.io.File
 fun TelaPrincipal(
     viewModel: MainViewModel,
     onIrParaLista: () -> Unit,
-    onIrParaRifas: () -> Unit
+    onIrParaRifas: () -> Unit,
+    onIrParaPainelGerencial: () -> Unit
 ) {
     val context = LocalContext.current
     val solidRedBackground = Color(0xFF5B0000)
@@ -145,15 +146,15 @@ fun TelaPrincipal(
                 contentDescription = "Logo do App",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(250.dp)
-                    .padding(top = 16.dp, bottom = 8.dp)
+                    .size(230.dp)
+                    .padding(top = 8.dp, bottom = 4.dp)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "CHAMA",
-                fontSize = 58.sp,
+                fontSize = 54.sp,
                 textAlign = TextAlign.Center,
                 fontFamily = GermaniaOne,
                 color = Color.White
@@ -161,25 +162,25 @@ fun TelaPrincipal(
 
             Text(
                 text = "Gerenciador da catequese de crisma",
-                fontSize = 20.sp,
+                fontSize = 19.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 2.dp),
                 fontFamily = GermaniaOne,
                 color = Color.White.copy(alpha = 0.95f)
             )
 
             Text(
                 text = "2026/2027",
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 2.dp, bottom = 32.dp),
+                modifier = Modifier.padding(top = 2.dp, bottom = 24.dp),
                 fontFamily = GermaniaOne,
                 color = Color.White.copy(alpha = 0.85f)
             )
 
             Column(
-                modifier = Modifier.fillMaxWidth(0.78f),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth(0.82f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Button(
@@ -189,7 +190,7 @@ fun TelaPrincipal(
                     shape = buttonShape,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(52.dp)
                         .clip(buttonShape)
                         .background(buttonBackground)
                         .border(1.5.dp, buttonBorderColor, buttonShape)
@@ -214,7 +215,7 @@ fun TelaPrincipal(
                     shape = buttonShape,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(52.dp)
                         .clip(buttonShape)
                         .background(buttonBackground)
                         .border(1.5.dp, buttonBorderColor, buttonShape)
@@ -225,6 +226,31 @@ fun TelaPrincipal(
                     ) {
                         Text(
                             text = "Gestão de rifas",
+                            fontFamily = GermaniaOne,
+                            fontSize = 20.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onIrParaPainelGerencial,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp),
+                    shape = buttonShape,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(buttonShape)
+                        .background(buttonBackground)
+                        .border(1.5.dp, buttonBorderColor, buttonShape)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Painel Gerencial",
                             fontFamily = GermaniaOne,
                             fontSize = 20.sp,
                             color = Color.White

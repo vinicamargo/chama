@@ -18,6 +18,7 @@ import com.example.chama.data.dao.RifaDao
 import com.example.chama.data.dao.VendedorDao
 import com.example.chama.data.entity.Rifa
 import com.example.chama.data.model.PessoaVendedora
+import com.example.chama.utils.GeneroUtils
 import com.example.chama.utils.NormalizacaoUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,7 +44,7 @@ class MainViewModel(
     private val rifaDao: RifaDao
 ) : ViewModel() {
 
-    val dataDeHoje = LocalDate.of(2026, 11, 27)
+    val dataDeHoje = LocalDate.of(2026, 12, 2)
 
     val diaSelecionado = MutableStateFlow("")
 
@@ -433,7 +434,8 @@ class MainViewModel(
                             dataNascimento = dataNasc,
                             telefone = tel,
                             nomeResponsavel = nomeResp,
-                            telefoneResponsavel = telResp
+                            telefoneResponsavel = telResp,
+                            genero = GeneroUtils.inferirGenero(nome)
                         )
 
                         val novoId = crismandoDao.inserir(crismando)

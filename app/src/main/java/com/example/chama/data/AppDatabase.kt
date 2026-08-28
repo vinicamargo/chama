@@ -16,7 +16,7 @@ import com.example.chama.data.entity.Vendedor
 
 @Database(
     entities = [Crismando::class, Presenca::class, Vendedor::class, Rifa::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
