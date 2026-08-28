@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,7 +49,6 @@ import com.example.chama.data.entity.Crismando
 import java.time.LocalDate
 import java.time.Period
 
-// Modelo auxiliar que guarda o crismando e sua idade calculada
 data class CrismandoComIdade(
     val crismando: Crismando,
     val idadeExata: Int
@@ -64,12 +61,12 @@ fun CardFaixaEtaria(
     modifier: Modifier = Modifier
 ) {
     val coresFaixas = listOf(
-        Color(0xFF1E88E5), // Azul
-        Color(0xFF43A047), // Verde
-        Color(0xFFFB8C00), // Laranja
-        Color(0xFF8E24AA), // Roxo
-        Color(0xFFE53935), // Vermelho
-        Color(0xFF00ACC1)  // Ciano
+        Color(0xFF1E88E5),
+        Color(0xFF43A047),
+        Color(0xFFFB8C00),
+        Color(0xFF8E24AA),
+        Color(0xFFE53935),
+        Color(0xFF00ACC1)
     )
 
     // Estado da faixa selecionada para exibir os crismandos
@@ -273,7 +270,7 @@ fun CardFaixaEtaria(
                                 }
 
                                 Text(
-                                    text = "$qtd (%.0f%%)".format(perc),
+                                    text = "(%.0f%%)".format(perc),
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (selecionado) cor else MaterialTheme.colorScheme.onSurfaceVariant
@@ -303,7 +300,7 @@ fun CardFaixaEtaria(
                         )
 
                         Text(
-                            text = "Crismandos em '$faixaSelecionada':",
+                            text = "Crismandos entre $faixaSelecionada:",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -351,7 +348,7 @@ fun CardFaixaEtaria(
                                     color = MaterialTheme.colorScheme.primary
                                 )
 
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
 
                                 Icon(
                                     imageVector = Icons.Default.ChevronRight,
