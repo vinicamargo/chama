@@ -10,12 +10,13 @@ val localProperties = Properties().apply {
 val mockHojeProp = localProperties.getProperty("MOCK_HOJE_DEV", "").replace("\"", "")
 val mockHojeDev = "\"$mockHojeProp\""
 
-val roomVersion = project.properties["roomVersion"].toString()
+val roomVersion = providers.gradleProperty("roomVersion").get()
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp") version "2.3.6"
+    id("jacoco")
 }
 
 android {
@@ -39,6 +40,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            enableUnitTestCoverage = true
+            enableAndroidTestCoverage = true
         }
     }
 
@@ -106,4 +111,69 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     testImplementation("io.mockk:mockk:1.13.10")
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.register<JacocoReport>("jacocoCombinedReport") {
+    dependsOn("testDevDebugUnitTest", "connectedDevDebugAndroidTest")
+
+    group = "Reporting"
+    description = "Gera o relatório de cobertura unificado (Unitários + Instrumentados)"
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    val fileFilter = listOf(
+        "**/R.class",
+        "**/R$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Test*.*",
+        "android/**/*.*",
+        "**/ComposableSingletons*",
+        "**/*_Factory*",
+        "**/*_Impl*",
+        "**/*_ViewBinding*",
+        "**/ui/screens/**",
+        "**/ui/theme/**",
+        "**/ui/components/**"
+    )
+
+    val buildDir = project.layout.buildDirectory.get().asFile
+
+    // Caminho real identificado pelo comando 'find'
+    val kotlinClassesDir = File(buildDir, "intermediates/built_in_kotlinc/devDebug/compileDevDebugKotlin/classes")
+    val javaClassesDir = File(buildDir, "intermediates/javac/devDebug/compileDevDebugJavaWithJavac/classes")
+
+    val classTrees = listOf(kotlinClassesDir, javaClassesDir)
+        .filter { it.exists() }
+        .map { dir ->
+            fileTree(dir) {
+                exclude(fileFilter)
+            }
+        }
+
+    classDirectories.setFrom(files(classTrees))
+
+    val mainSrc = "${project.projectDir}/src/main/java"
+    sourceDirectories.setFrom(files(mainSrc))
+
+    // Filtra apenas arquivos binários de execução que realmente existem no disco
+    val execLocal = File(buildDir, "outputs/unit_test_code_coverage/devDebugUnitTest/testDevDebugUnitTest.exec")
+    val execLocalAlt = File(buildDir, "jacoco/testDevDebugUnitTest.exec")
+    val execConnected = fileTree(File(buildDir, "outputs/code_coverage/devDebugAndroidTest/connected")) {
+        include("**/*.ec")
+    }
+
+    val validExecData = mutableListOf<Any>()
+    if (execLocal.exists()) validExecData.add(execLocal)
+    else if (execLocalAlt.exists()) validExecData.add(execLocalAlt)
+    validExecData.add(execConnected)
+
+    executionData.setFrom(files(validExecData))
 }
