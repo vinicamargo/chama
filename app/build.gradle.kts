@@ -101,4 +101,6 @@ dependencies {
     implementation("com.vanniktech:android-image-cropper:4.6.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

@@ -1,24 +1,33 @@
 package com.example.chama
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import com.example.chama.data.AppDatabase
-import com.example.chama.ui.theme.CHAMATheme
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.chama.data.AppDatabase
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.screens.TelaListasPresencas
+import com.example.chama.ui.screens.TelaPainelGerencial
 import com.example.chama.ui.screens.TelaPrincipal
 import com.example.chama.ui.screens.TelaRifas
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.example.chama.ui.screens.TelaPainelGerencial
+import com.example.chama.ui.theme.CHAMATheme
+import com.example.chama.utils.NotificacaoAgendador
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,20 +43,45 @@ class MainActivity : ComponentActivity() {
             db.rifaDao()
         )
 
+        NotificacaoAgendador.agendarNotificacaoDiaria(this)
+        androidx.work.WorkManager.getInstance(this).enqueue(
+            androidx.work.OneTimeWorkRequestBuilder<com.example.chama.workers.AniversarioWorker>().build()
+        )
+
         setContent {
             CHAMATheme {
-                Surface (
+                val context = LocalContext.current
+
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { isGranted ->
+                }
+
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (!hasPermission) {
+                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                }
+
+                Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
-                ){
+                ) {
                     val navController = rememberNavController()
 
                     NavHost(navController = navController, startDestination = Tela.Home.rota) {
                         composable(Tela.Home.rota) {
                             TelaPrincipal(
-                                onIrParaLista = {navController.navigate(Tela.ListaPresenca.rota)},
-                                onIrParaRifas = {navController.navigate(Tela.Rifas.rota)},
-                                onIrParaPainelGerencial = {navController.navigate(Tela.PainelGerencial.rota)},
+                                onIrParaLista = { navController.navigate(Tela.ListaPresenca.rota) },
+                                onIrParaRifas = { navController.navigate(Tela.Rifas.rota) },
+                                onIrParaPainelGerencial = { navController.navigate(Tela.PainelGerencial.rota) },
                                 viewModel = viewModel
                             )
                         }
@@ -70,7 +104,7 @@ class MainActivity : ComponentActivity() {
 sealed class Tela(val rota: String) {
     object Home : Tela("home")
     object ListaPresenca : Tela("listaPresenca")
-    object Rifas: Tela("rifas")
+    object Rifas : Tela("rifas")
     object PainelGerencial : Tela("painelGerencial")
 }
 
