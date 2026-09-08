@@ -34,11 +34,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.util.zip.ZipInputStream
 import kotlin.random.Random
 
 class MainViewModel(
@@ -341,7 +344,26 @@ class MainViewModel(
     fun importarBackupZip(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val (arquivoCsv, fotosRestauradasMap) = ZipBackupUtils.descompactarZipBackup(context, uri)
+                var arquivoCsv: File? = null
+
+                // 1. Extrai apenas o dados.csv de dentro do ZIP
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    ZipInputStream(BufferedInputStream(inputStream)).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            if (entry.name == "dados.csv" || entry.name.endsWith(".csv")) {
+                                val tempCsv = File(context.cacheDir, "dados_temp.csv")
+                                FileOutputStream(tempCsv).use { fos -> zis.copyTo(fos) }
+                                arquivoCsv = tempCsv
+                                break
+                            }
+                            zis.closeEntry()
+                            entry = zis.nextEntry
+                        }
+                    }
+                }
+
+                if (arquivoCsv == null || !arquivoCsv.exists()) return@launch
 
                 val linhas = arquivoCsv.readLines().filter { it.isNotBlank() }
                 if (linhas.size <= 1) return@launch
@@ -349,24 +371,21 @@ class MainViewModel(
                 val cabecalho = parseCsvLine(linhas[0])
                 val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
+                // Extrai datas dos domingos a partir da coluna 7 (após BlocosRifa)[cite: 1]
                 val datasLista = if (cabecalho.size > 7) {
                     cabecalho.drop(7).mapNotNull { dataStr ->
                         runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
                     }
-                } else {
-                    emptyList()
-                }
+                } else emptyList()
 
+                // Identifica o maior bloco de rifas para gerar os cartões
                 val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
-                var maiorBloco = 0
-                linhasDados.forEach { colunas ->
+                val maiorBloco = linhasDados.maxOfOrNull { colunas ->
                     val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
                     if (blocosTexto.isNotBlank()) {
-                        val nums = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
-                        val maxLinha = nums.maxOrNull() ?: 0
-                        if (maxLinha > maiorBloco) maiorBloco = maxLinha
-                    }
-                }
+                        blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }.maxOrNull() ?: 0
+                    } else 0
+                } ?: 0
 
                 limparDatabase()
 
@@ -383,23 +402,20 @@ class MainViewModel(
                     rifaDao.inserirRifas(listaRifasIniciais)
                 }
 
+                // 2. Insere os crismandos atribuindo a fotoUrl diretamente do CSV
                 linhasDados.forEach { colunas ->
                     val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
                     if (nome.isBlank()) return@forEach
 
-                    val fotoOriginal = colunas.getOrNull(1)?.trim()?.ifBlank { null }
+                    val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
                     val dataNasc = NormalizacaoUtils.normalizarDataNascimento(colunas.getOrNull(2))
                     val tel = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(3))
                     val nomeResp = NormalizacaoUtils.normalizarNome(colunas.getOrNull(4)).ifBlank { null }
                     val telResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(5))
 
-                    // Calcula a mesma chave imutável para encontrar a foto descompactada
-                    val chaveCrismando = FileUtils.gerarChaveCrismando(nome, dataNasc)
-                    val fotoCaminhoRestaurado = fotosRestauradasMap[chaveCrismando] ?: fotoOriginal
-
                     val crismando = Crismando(
                         nome = nome,
-                        fotoUrl = fotoCaminhoRestaurado,
+                        fotoUrl = fotoUrl, // Pega diretamente o link da internet
                         dataNascimento = dataNasc,
                         telefone = tel,
                         nomeResponsavel = nomeResp,
@@ -412,6 +428,7 @@ class MainViewModel(
                         Vendedor(vendedorId = novoId, tipo = TipoVendedor.CRISMANDO)
                     )
 
+                    // Rifas
                     val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
                     if (blocosTexto.isNotBlank()) {
                         val blocosDoCrismando = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
@@ -420,6 +437,7 @@ class MainViewModel(
                         }
                     }
 
+                    // Presenças
                     val presencasColunas = if (colunas.size > 7) colunas.drop(7) else emptyList()
                     val listaPresencas = datasLista.mapIndexed { i, dataIso ->
                         val valor = presencasColunas.getOrNull(i)?.trim() ?: ""
@@ -437,7 +455,7 @@ class MainViewModel(
                     }
                 }
 
-                arquivoCsv.parentFile?.deleteRecursively()
+                arquivoCsv.delete()
 
             } catch (e: Exception) {
                 e.printStackTrace()
