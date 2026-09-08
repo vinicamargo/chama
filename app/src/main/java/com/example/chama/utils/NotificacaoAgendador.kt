@@ -14,7 +14,7 @@ object NotificacaoAgendador {
 
     fun agendarNotificacaoDiaria(context: Context) {
         val agora = LocalDateTime.now()
-        val horarioAlvo = LocalTime.of(8, 0) // Horário desejado para o alerta
+        val horarioAlvo = LocalTime.of(23, 18)
         var proximaExecucao = agora.toLocalDate().atTime(horarioAlvo)
 
         if (agora.isAfter(proximaExecucao)) {
@@ -29,7 +29,7 @@ object NotificacaoAgendador {
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             "verificar_aniversarios_diarios",
-            ExistingPeriodicWorkPolicy.KEEP, // Não reinicia a contagem se já estiver agendado
+            ExistingPeriodicWorkPolicy.UPDATE,
             workRequest
         )
     }

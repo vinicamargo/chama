@@ -1,8 +1,5 @@
 package com.example.chama.ui.screens
-import com.example.chama.ui.components.gerencial.CardProximosAniversarios
-import com.example.chama.ui.components.gerencial.AniversarianteInfo
-import java.time.temporal.ChronoUnit
-import com.example.chama.ui.components.gerencial.CardFaixaEtaria
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -10,67 +7,46 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.components.gerencial.AniversarianteInfo
 import com.example.chama.ui.components.gerencial.CardCrismandosPorFaltas
 import com.example.chama.ui.components.gerencial.CardDistribuicaoGenero
+import com.example.chama.ui.components.gerencial.CardFaixaEtaria
 import com.example.chama.ui.components.gerencial.CardFrequenciaGeral
 import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
+import com.example.chama.ui.components.gerencial.CardProximosAniversarios
 import com.example.chama.ui.components.presencas.DetalhesCrismando
 import java.time.LocalDate
 import java.time.Period
-
-
+import java.time.temporal.ChronoUnit
 
 data class CrismandoFaltasInfo(
     val crismando: Crismando,
@@ -83,6 +59,7 @@ data class CrismandoFaltasInfo(
 @Composable
 fun TelaPainelGerencial(
     viewModel: MainViewModel,
+    crismandoIdInicial: Long? = null,
     onVoltar: () -> Unit = {}
 ) {
     val crismandos by viewModel.listaCrismandosOriginal.collectAsState()
@@ -91,6 +68,15 @@ fun TelaPainelGerencial(
     val listaRifas by viewModel.listaRifas.collectAsState()
 
     var crismandoDetalhes by remember { mutableStateOf<Crismando?>(null) }
+
+    // Abre os detalhes automaticamente se um ID inicial vier da notificação
+    LaunchedEffect(crismandos, crismandoIdInicial) {
+        if (crismandoIdInicial != null && crismandoDetalhes == null) {
+            crismandos.find { it.crismandoId == crismandoIdInicial }?.let {
+                crismandoDetalhes = it
+            }
+        }
+    }
 
     BackHandler(enabled = crismandoDetalhes != null) {
         crismandoDetalhes = null
@@ -198,15 +184,12 @@ fun TelaPainelGerencial(
                 runCatching {
                     val nascimento = LocalDate.parse(dataStr)
 
-                    // Pega a data de aniversário no ano da dataDeHoje
                     var proximoNiver = runCatching {
                         nascimento.withYear(dataDeHoje.year)
                     }.getOrElse {
-                        // Trata ano bissexto (29/02)
                         LocalDate.of(dataDeHoje.year, 2, 28)
                     }
 
-                    // Se já passou esse ano, considera o aniversário do próximo ano
                     if (proximoNiver.isBefore(dataDeHoje)) {
                         proximoNiver = runCatching {
                             nascimento.withYear(dataDeHoje.year + 1)
@@ -257,40 +240,35 @@ fun TelaPainelGerencial(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Card Refatorado: Total de Crismandos e Total de Encontros
                 CardMetricasCabecalho(
                     totalCrismandos = totalCrismandos,
                     totalEncontros = metricasGerais.encontros
                 )
 
-                // Card de Frequência Geral com Média de Faltas
                 CardFrequenciaGeral(
                     porcentagemPresenca = metricasGerais.porcentagem,
                     mediaFaltasPorEncontro = metricasGerais.mediaFaltas
                 )
 
-                // Top 5 Faltas / Todos com Faltas
+                CardProximosAniversarios(
+                    lista = proximosAniversariantes,
+                    onCrismandoClick = { crismandoDetalhes = it }
+                )
+
                 CardCrismandosPorFaltas(
                     lista = listaCrismandosComFaltas,
                     onCrismandoClick = { crismandoDetalhes = it }
                 )
 
-                // Faixas Etárias
                 CardFaixaEtaria(
                     crismandos = crismandos,
                     onCrismandoClick = { crismandoDetalhes = it }
                 )
 
-                // Gênero
                 CardDistribuicaoGenero(
                     totalMeninos = totalMeninos,
                     totalMeninas = totalMeninas,
                     total = totalCrismandos
-                )
-
-                CardProximosAniversarios(
-                    lista = proximosAniversariantes,
-                    onCrismandoClick = { crismandoDetalhes = it }
                 )
             }
 
@@ -340,6 +318,3 @@ fun TelaPainelGerencial(
         }
     }
 }
-
-
-

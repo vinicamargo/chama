@@ -19,8 +19,10 @@ import com.example.chama.data.dao.RifaDao
 import com.example.chama.data.dao.VendedorDao
 import com.example.chama.data.entity.Rifa
 import com.example.chama.data.model.PessoaVendedora
+import com.example.chama.utils.FileUtils
 import com.example.chama.utils.GeneroUtils
 import com.example.chama.utils.NormalizacaoUtils
+import com.example.chama.utils.ZipBackupUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +34,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -236,214 +239,10 @@ class MainViewModel(
         }
     }
 
-    fun exportarBackupCompletoCSV(): String {
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
-
-        val crismandos = listaCrismandosOriginal.value
-        val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
-        val rifas = listaRifas.value
-        val datasIso = diasComChamada.value.sorted()
-        val datasFormatadas = datasIso.map { dataIso ->
-            runCatching { LocalDate.parse(dataIso).format(formatter) }.getOrDefault(dataIso)
-        }
-
-        // 1. Mapeamento de presenças por (crismandoId, dataIso)
-        val mapaPresencas = todasPresencas.associate { presenca ->
-            Pair(presenca.crismandoId, presenca.data) to presenca.estaPresente
-        }
-
-        // 2. Mapeamento de blocos de rifas por crismandoId
-        val mapaBlocosPorCrismando = rifas
-            .filter { it.vendedorId != null }
-            .groupBy { it.vendedorId!! }
-            .mapValues { (_, rifasDoVendedor) ->
-                rifasDoVendedor.map { it.bloco }.distinct().sorted()
-            }
-
-        val csv = StringBuilder()
-        csv.append("\uFEFF") // BOM UTF-8 para compatibilidade com Excel
-
-        // 3. Cabeçalho Padronizado: 6 Cadastrais + Rifas + Datas
-        val colunasCabecalho = listOf(
-            "Nome",
-            "FotoUrl",
-            "DataNascimento",
-            "Telefone",
-            "NomeResponsavel",
-            "TelefoneResponsavel",
-            "BlocosRifa"
-        ) + datasFormatadas
-        csv.append(colunasCabecalho.joinToString(",")).append("\n")
-
-        // 4. Linhas com dados consolidados
-        crismandos.forEach { crismando ->
-            val blocosDoCrismando = mapaBlocosPorCrismando[crismando.crismandoId] ?: emptyList()
-            val textoBlocos = if (blocosDoCrismando.isNotEmpty()) {
-                "\"${blocosDoCrismando.joinToString(";")}\"" // Ex: "1;2;3"
-            } else {
-                ""
-            }
-
-            val dadosCadastrais = listOf(
-                crismando.nome,
-                crismando.fotoUrl ?: "",
-                crismando.dataNascimento ?: "",
-                crismando.telefone ?: "",
-                crismando.nomeResponsavel ?: "",
-                crismando.telefoneResponsavel ?: "",
-                textoBlocos
-            )
-
-            val statusPresencas = datasIso.map { dataStr ->
-                val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
-                if (estaPresente) "O" else "F"
-            }
-
-            val linhaCompleta = (dadosCadastrais + statusPresencas).joinToString(",")
-            csv.append(linhaCompleta).append("\n")
-        }
-
-        return csv.toString()
-    }
-
     fun limparDatabase() {
         presencaDao.deleteAllPresencas()
         vendedorDao.deletarVendedoresCRISMANDO()
         crismandoDao.deleteAllCrismandos()
-    }
-
-    fun importarDadosCsv(context: Context, uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val reader = inputStream.bufferedReader()
-                    val linhas = reader.readLines().filter { it.isNotBlank() }
-                    if (linhas.size <= 1) return@use
-
-                    val cabecalho = parseCsvLine(linhas[0])
-                    val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
-
-                    // As datas iniciam na 8ª coluna (índice 7)
-                    val datasLista = if (cabecalho.size > 7) {
-                        cabecalho.drop(7).mapNotNull { dataStr ->
-                            runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
-                        }
-                    } else {
-                        emptyList()
-                    }
-
-                    // 1. Pré-leitura: Descobre o maior bloco citado no CSV
-                    val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
-                    var maiorBloco = 0
-                    linhasDados.forEach { colunas ->
-                        val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
-                        if (blocosTexto.isNotBlank()) {
-                            val nums = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
-                            val maxLinha = nums.maxOrNull() ?: 0
-                            if (maxLinha > maiorBloco) {
-                                maiorBloco = maxLinha
-                            }
-                        }
-                    }
-
-                    // 2. Limpa banco de dados anterior
-                    limparDatabase()
-
-                    // 3. Se houver blocos, gera todos de 1 até o maiorBloco
-                    if (maiorBloco > 0) {
-                        val totalRifas = maiorBloco * 10
-                        val listaRifasIniciais = (1..totalRifas).map { numero ->
-                            val numBloco = ((numero - 1) / 10) + 1
-                            Rifa(
-                                numero = numero,
-                                bloco = numBloco,
-                                estaPaga = false,
-                                vendedorId = null
-                            )
-                        }
-                        rifaDao.inserirRifas(listaRifasIniciais)
-                    }
-
-                    // 4. Cadastra crismandos, vincula blocos e registra presenças
-                    linhasDados.forEach { colunas ->
-                        val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
-                        if (nome.isBlank()) return@forEach
-
-                        val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
-                        val dataNasc = NormalizacaoUtils.normalizarDataNascimento(colunas.getOrNull(2))
-                        val tel = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(3))
-                        val nomeResp = NormalizacaoUtils.normalizarNome(colunas.getOrNull(4)).ifBlank { null }
-                        val telResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(5))
-
-                        val crismando = Crismando(
-                            nome = nome,
-                            fotoUrl = fotoUrl,
-                            dataNascimento = dataNasc,
-                            telefone = tel,
-                            nomeResponsavel = nomeResp,
-                            telefoneResponsavel = telResp,
-                            genero = GeneroUtils.inferirGenero(nome)
-                        )
-
-                        val novoId = crismandoDao.inserir(crismando)
-
-                        vendedorDao.inserirVendedor(
-                            Vendedor(vendedorId = novoId, tipo = TipoVendedor.CRISMANDO)
-                        )
-
-                        // Vincula os blocos do crismando (se preenchidos)
-                        val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
-                        if (blocosTexto.isNotBlank()) {
-                            val blocosDoCrismando = blocosTexto
-                                .split(";", ",")
-                                .mapNotNull { it.trim().toIntOrNull() }
-
-                            blocosDoCrismando.forEach { numBloco ->
-                                rifaDao.vincularVendedorAoBloco(novoId, numBloco)
-                            }
-                        }
-
-                        // Registra presenças das datas (iniciando no índice 7)
-                        val presencasColunas = if (colunas.size > 7) colunas.drop(7) else emptyList()
-                        val listaPresencas = datasLista.mapIndexed { index, dataIso ->
-                            val valorBruto = presencasColunas.getOrNull(index)
-                            val estaPresente = NormalizacaoUtils.normalizarPresenca(valorBruto)
-
-                            Presenca(
-                                crismandoId = novoId,
-                                data = dataIso,
-                                estaPresente = estaPresente
-                            )
-                        }
-
-                        if (listaPresencas.isNotEmpty()) {
-                            presencaDao.gerarListaPresenca(listaPresencas)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private fun parseCsvLine(linha: String): List<String> {
-        val colunas = mutableListOf<String>()
-        var dentroDeAspas = false
-        val sb = StringBuilder()
-
-        for (ch in linha) {
-            when {
-                ch == '\"' -> dentroDeAspas = !dentroDeAspas
-                ch == ',' && !dentroDeAspas -> {
-                    colunas.add(sb.toString().trim().removeSurrounding("\""))
-                    sb.clear()
-                }
-                else -> sb.append(ch)
-            }
-        }
-        colunas.add(sb.toString().trim().removeSurrounding("\""))
-        return colunas
     }
 
     fun registrarVendedor(nome: String, tipoVendedor: TipoVendedor) {
@@ -537,5 +336,213 @@ class MainViewModel(
                 onResultado(true, 0)
             }
         }
+    }
+
+    fun importarBackupZip(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (arquivoCsv, fotosRestauradasMap) = ZipBackupUtils.descompactarZipBackup(context, uri)
+
+                val linhas = arquivoCsv.readLines().filter { it.isNotBlank() }
+                if (linhas.size <= 1) return@launch
+
+                val cabecalho = parseCsvLine(linhas[0])
+                val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
+
+                val datasLista = if (cabecalho.size > 7) {
+                    cabecalho.drop(7).mapNotNull { dataStr ->
+                        runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
+                    }
+                } else {
+                    emptyList()
+                }
+
+                val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
+                var maiorBloco = 0
+                linhasDados.forEach { colunas ->
+                    val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                    if (blocosTexto.isNotBlank()) {
+                        val nums = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
+                        val maxLinha = nums.maxOrNull() ?: 0
+                        if (maxLinha > maiorBloco) maiorBloco = maxLinha
+                    }
+                }
+
+                limparDatabase()
+
+                if (maiorBloco > 0) {
+                    val totalRifas = maiorBloco * 10
+                    val listaRifasIniciais = (1..totalRifas).map { numero ->
+                        Rifa(
+                            numero = numero,
+                            bloco = ((numero - 1) / 10) + 1,
+                            estaPaga = false,
+                            vendedorId = null
+                        )
+                    }
+                    rifaDao.inserirRifas(listaRifasIniciais)
+                }
+
+                linhasDados.forEach { colunas ->
+                    val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
+                    if (nome.isBlank()) return@forEach
+
+                    val fotoOriginal = colunas.getOrNull(1)?.trim()?.ifBlank { null }
+                    val dataNasc = NormalizacaoUtils.normalizarDataNascimento(colunas.getOrNull(2))
+                    val tel = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(3))
+                    val nomeResp = NormalizacaoUtils.normalizarNome(colunas.getOrNull(4)).ifBlank { null }
+                    val telResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(5))
+
+                    // Calcula a mesma chave imutável para encontrar a foto descompactada
+                    val chaveCrismando = FileUtils.gerarChaveCrismando(nome, dataNasc)
+                    val fotoCaminhoRestaurado = fotosRestauradasMap[chaveCrismando] ?: fotoOriginal
+
+                    val crismando = Crismando(
+                        nome = nome,
+                        fotoUrl = fotoCaminhoRestaurado,
+                        dataNascimento = dataNasc,
+                        telefone = tel,
+                        nomeResponsavel = nomeResp,
+                        telefoneResponsavel = telResp
+                    )
+
+                    val novoId = crismandoDao.inserir(crismando)
+
+                    vendedorDao.inserirVendedor(
+                        Vendedor(vendedorId = novoId, tipo = TipoVendedor.CRISMANDO)
+                    )
+
+                    val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                    if (blocosTexto.isNotBlank()) {
+                        val blocosDoCrismando = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
+                        blocosDoCrismando.forEach { numBloco ->
+                            rifaDao.vincularVendedorAoBloco(novoId, numBloco)
+                        }
+                    }
+
+                    val presencasColunas = if (colunas.size > 7) colunas.drop(7) else emptyList()
+                    val listaPresencas = datasLista.mapIndexed { i, dataIso ->
+                        val valor = presencasColunas.getOrNull(i)?.trim() ?: ""
+                        val presente = valor.equals("O", ignoreCase = true) || valor.equals("P", ignoreCase = true)
+
+                        Presenca(
+                            crismandoId = novoId,
+                            data = dataIso,
+                            estaPresente = presente
+                        )
+                    }
+
+                    if (listaPresencas.isNotEmpty()) {
+                        presencaDao.gerarListaPresenca(listaPresencas)
+                    }
+                }
+
+                arquivoCsv.parentFile?.deleteRecursively()
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    suspend fun exportarBackupCompletoZip(context: Context): File = withContext(Dispatchers.IO) {
+        val dadosCsv = exportarBackupCompletoCSV()
+        val crismandos = listaCrismandosOriginal.value
+
+        val fotos = crismandos.map { crismando ->
+            val chave = FileUtils.gerarChaveCrismando(crismando.nome, crismando.dataNascimento)
+            Triple(chave, crismando.nome, crismando.fotoUrl)
+        }
+
+        ZipBackupUtils.criarZipBackup(
+            context = context,
+            conteudoCsv = dadosCsv,
+            crismandosComFoto = fotos
+        )
+    }
+
+    fun exportarBackupCompletoCSV(): String {
+        val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
+
+        val crismandos = listaCrismandosOriginal.value
+        val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
+        val rifas = listaRifas.value
+        val datasIso = diasComChamada.value.sorted()
+        val datasFormatadas = datasIso.map { dataIso ->
+            runCatching { LocalDate.parse(dataIso).format(formatter) }.getOrDefault(dataIso)
+        }
+
+        val mapaPresencas = todasPresencas.associate { presenca ->
+            Pair(presenca.crismandoId, presenca.data) to presenca.estaPresente
+        }
+
+        val mapaBlocosPorCrismando = rifas
+            .filter { it.vendedorId != null }
+            .groupBy { it.vendedorId!! }
+            .mapValues { (_, rifasDoVendedor) ->
+                rifasDoVendedor.map { it.bloco }.distinct().sorted()
+            }
+
+        val csv = StringBuilder()
+        csv.append("\uFEFF")
+
+        val colunasCabecalho = listOf(
+            "Nome",
+            "FotoUrl",
+            "DataNascimento",
+            "Telefone",
+            "NomeResponsavel",
+            "TelefoneResponsavel",
+            "BlocosRifa"
+        ) + datasFormatadas
+        csv.append(colunasCabecalho.joinToString(",")).append("\n")
+
+        crismandos.forEach { crismando ->
+            val blocosDoCrismando = mapaBlocosPorCrismando[crismando.crismandoId] ?: emptyList()
+            val textoBlocos = if (blocosDoCrismando.isNotEmpty()) {
+                "\"${blocosDoCrismando.joinToString(";")}\"" // Ex: "1;2;3"
+            } else {
+                ""
+            }
+
+            val dadosCadastrais = listOf(
+                crismando.nome,
+                crismando.fotoUrl ?: "",
+                crismando.dataNascimento ?: "",
+                crismando.telefone ?: "",
+                crismando.nomeResponsavel ?: "",
+                crismando.telefoneResponsavel ?: "",
+                textoBlocos
+            )
+
+            val statusPresencas = datasIso.map { dataStr ->
+                val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
+                if (estaPresente) "O" else "F"
+            }
+
+            val linhaCompleta = (dadosCadastrais + statusPresencas).joinToString(",")
+            csv.append(linhaCompleta).append("\n")
+        }
+
+        return csv.toString()
+    }
+
+    private fun parseCsvLine(linha: String): List<String> {
+        val colunas = mutableListOf<String>()
+        var dentroDeAspas = false
+        val sb = StringBuilder()
+
+        for (ch in linha) {
+            when {
+                ch == '\"' -> dentroDeAspas = !dentroDeAspas
+                ch == ',' && !dentroDeAspas -> {
+                    colunas.add(sb.toString().trim().removeSurrounding("\""))
+                    sb.clear()
+                }
+                else -> sb.append(ch)
+            }
+        }
+        colunas.add(sb.toString().trim().removeSurrounding("\""))
+        return colunas
     }
 }
