@@ -1,5 +1,7 @@
 package com.example.chama.ui.screens
-
+import com.example.chama.ui.components.gerencial.CardProximosAniversarios
+import com.example.chama.ui.components.gerencial.AniversarianteInfo
+import java.time.temporal.ChronoUnit
 import com.example.chama.ui.components.gerencial.CardFaixaEtaria
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -67,6 +69,7 @@ import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
 import com.example.chama.ui.components.presencas.DetalhesCrismando
 import java.time.LocalDate
 import java.time.Period
+
 
 
 data class CrismandoFaltasInfo(
@@ -189,6 +192,44 @@ fun TelaPainelGerencial(
         crismandos.count { it.genero == Genero.FEMININO }
     }
 
+    val proximosAniversariantes = remember(crismandos, dataDeHoje) {
+        crismandos.mapNotNull { crismando ->
+            crismando.dataNascimento?.let { dataStr ->
+                runCatching {
+                    val nascimento = LocalDate.parse(dataStr)
+
+                    // Pega a data de aniversário no ano da dataDeHoje
+                    var proximoNiver = runCatching {
+                        nascimento.withYear(dataDeHoje.year)
+                    }.getOrElse {
+                        // Trata ano bissexto (29/02)
+                        LocalDate.of(dataDeHoje.year, 2, 28)
+                    }
+
+                    // Se já passou esse ano, considera o aniversário do próximo ano
+                    if (proximoNiver.isBefore(dataDeHoje)) {
+                        proximoNiver = runCatching {
+                            nascimento.withYear(dataDeHoje.year + 1)
+                        }.getOrElse {
+                            LocalDate.of(dataDeHoje.year + 1, 2, 28)
+                        }
+                    }
+
+                    val dias = ChronoUnit.DAYS.between(dataDeHoje, proximoNiver)
+                    if (dias in 0..30) {
+                        val novaIdade = Period.between(nascimento, proximoNiver).years
+                        AniversarianteInfo(
+                            crismando = crismando,
+                            dataAniversario = proximoNiver,
+                            diasRestantes = dias,
+                            idadeQueVaiFazer = novaIdade
+                        )
+                    } else null
+                }.getOrNull()
+            }
+        }.sortedBy { it.diasRestantes }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -245,6 +286,11 @@ fun TelaPainelGerencial(
                     totalMeninos = totalMeninos,
                     totalMeninas = totalMeninas,
                     total = totalCrismandos
+                )
+
+                CardProximosAniversarios(
+                    lista = proximosAniversariantes,
+                    onCrismandoClick = { crismandoDetalhes = it }
                 )
             }
 
