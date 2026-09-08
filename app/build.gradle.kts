@@ -15,7 +15,7 @@ val roomVersion = project.properties["roomVersion"].toString()
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp") version "2.3.2"
+    id("com.google.devtools.ksp") version "2.3.6"
 }
 
 android {
@@ -101,4 +101,6 @@ dependencies {
     implementation("com.vanniktech:android-image-cropper:4.6.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

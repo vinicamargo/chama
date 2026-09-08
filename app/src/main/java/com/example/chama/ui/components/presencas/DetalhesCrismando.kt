@@ -39,7 +39,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -80,7 +79,7 @@ import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
 import com.example.chama.data.entity.Crismando
 import com.example.chama.utils.DataVisualTransformation
-import com.example.chama.utils.salvarFotoLocal
+import com.example.chama.utils.FileUtils
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -110,23 +109,34 @@ fun DetalhesCrismando(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
-            val caminhoLocal = salvarFotoLocal(context, it, crismando.crismandoId)
-            if (caminhoLocal != null) {
-                onAtualizar(crismando.copy(fotoUrl = caminhoLocal))
+            val caminhoPermanente = FileUtils.salvarFoto(
+                context = context,
+                uriOrigem = uri,
+                nome = crismando.nome,
+                dataNascimento = crismando.dataNascimento
+            )
+
+            if (caminhoPermanente != null) {
+                onAtualizar(crismando.copy(fotoUrl = caminhoPermanente))
             }
         }
     }
 
-    @Suppress("DEPRECATION")
     val cropImageLauncher = rememberLauncherForActivityResult(
         contract = CropImageContract()
     ) { result: CropImageView.CropResult ->
         if (result.isSuccessful) {
             val uriCortada: Uri? = result.uriContent ?: result.getUriFilePath(context, true)?.let { Uri.parse(it) }
             uriCortada?.let { uri ->
-                val caminhoLocal = salvarFotoLocal(context, uri, crismando.crismandoId)
-                if (caminhoLocal != null) {
-                    onAtualizar(crismando.copy(fotoUrl = caminhoLocal))
+                // Salva fisicamente no filesDir
+                val caminhoPermanente = FileUtils.salvarFoto(
+                    context = context,
+                    uriOrigem = uri,
+                    nome = crismando.nome,
+                    dataNascimento = crismando.dataNascimento
+                )
+                if (caminhoPermanente != null) {
+                    onAtualizar(crismando.copy(fotoUrl = caminhoPermanente))
                 }
             }
         }
@@ -240,14 +250,6 @@ fun DetalhesCrismando(
                     text = crismando.nome,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "ID: ${crismando.crismandoId}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -613,8 +615,13 @@ fun DetalhesCrismando(
                             onClick = {
                                 showOpcoesFotoDialog = false
                                 runCatching {
-                                    val file = File(crismando.fotoUrl)
-                                    if (file.exists()) file.delete()
+                                    val uri = Uri.parse(crismando.fotoUrl)
+                                    if (uri.scheme == "content") {
+                                        context.contentResolver.delete(uri, null, null)
+                                    } else {
+                                        val file = File(crismando.fotoUrl)
+                                        if (file.exists()) file.delete()
+                                    }
                                 }
                                 onAtualizar(crismando.copy(fotoUrl = null))
                             },
