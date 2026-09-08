@@ -60,11 +60,10 @@ fun TelaPrincipal(
     val buttonBorderColor = Color(0x66FFFFFF)
     val buttonShape = RoundedCornerShape(26.dp)
 
-    // Launcher para selecionar arquivo CSV do backup
-    val csvPickerLauncher = rememberLauncherForActivityResult(
+    val zipPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.importarDadosCsv(context, it) }
+        uri?.let { viewModel.importarBackupZip(context, it) }
     }
 
     Box(
@@ -79,14 +78,14 @@ fun TelaPrincipal(
                 .padding(top = 40.dp, end = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Botão de Importar Backup
+            // Botão de Importar
             IconButton(
                 onClick = {
-                    csvPickerLauncher.launch(
+                    zipPickerLauncher.launch(
                         arrayOf(
-                            "text/csv",
-                            "text/comma-separated-values",
-                            "application/csv",
+                            "application/zip",
+                            "application/x-zip-compressed",
+                            "application/octet-stream",
                             "*/*"
                         )
                     )
@@ -94,39 +93,36 @@ fun TelaPrincipal(
             ) {
                 Icon(
                     imageVector = Icons.Default.FileDownload,
-                    contentDescription = "Importar Backup CSV",
+                    contentDescription = "Importar Backup ZIP",
                     tint = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // Botão de Exportar Backup
+            // Botão de Exportar
             IconButton(
                 onClick = {
                     viewModel.viewModelScope.launch(Dispatchers.IO) {
-                        val dadosCsv = viewModel.exportarBackupCompletoCSV()
-
-                        val file = File(context.cacheDir, "backup_geral_chama.csv")
-                        file.writeText(dadosCsv, charset = Charsets.UTF_8)
+                        val zipFile = viewModel.exportarBackupCompletoZip(context)
 
                         val uri = FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.provider",
-                            file
+                            zipFile
                         )
 
                         val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/csv"
+                            type = "application/zip"
                             putExtra(Intent.EXTRA_STREAM, uri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                        context.startActivity(Intent.createChooser(intent, "Compartilhar Backup Geral"))
+                        context.startActivity(Intent.createChooser(intent, "Compartilhar Backup Geral (.zip)"))
                     }
                 }
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                    contentDescription = "Exportar Backup CSV",
+                    contentDescription = "Exportar Backup ZIP",
                     tint = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.size(24.dp)
                 )

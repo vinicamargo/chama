@@ -2,31 +2,37 @@ package com.example.chama.utils
 
 import android.content.Context
 import android.net.Uri
-import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
 
-fun salvarFotoLocal(context: Context, uri: Uri, crismandoId: Long): String? {
-    return runCatching {
-        val pastaFotos = File(context.filesDir, "fotos_crismandos").apply { mkdirs() }
-        val arquivoDestino = File(pastaFotos, "crismando_${crismandoId}_${System.currentTimeMillis()}.jpg")
+object FileUtils {
 
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(arquivoDestino).use { output ->
-                input.copyTo(output)
+    fun gerarChaveCrismando(nome: String, dataNascimento: String?): String {
+        val entrada = "${nome.trim().lowercase()}_${dataNascimento?.trim() ?: ""}"
+        val bytes = MessageDigest.getInstance("MD5").digest(entrada.toByteArray())
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    fun salvarFoto(
+        context: Context,
+        uriOrigem: Uri,
+        nome: String,
+        dataNascimento: String?
+    ): String? {
+        val chave = gerarChaveCrismando(nome, dataNascimento)
+        val nomeArquivo = "perfil_${chave}.jpg"
+
+        return runCatching {
+            val pastaInterna = File(context.filesDir, "fotos_crismandos").apply { mkdirs() }
+            val arquivoDestino = File(pastaInterna, nomeArquivo)
+
+            context.contentResolver.openInputStream(uriOrigem)?.use { input ->
+                FileOutputStream(arquivoDestino, false).use { output -> // false = sobrescreve
+                    input.copyTo(output)
+                }
             }
-        }
-        arquivoDestino.absolutePath
-    }.getOrNull()
-}
-
-fun criarUriTemporariaCamera(context: Context, crismandoId: Long): Pair<File, Uri> {
-    val pastaFotos = File(context.filesDir, "fotos_crismandos").apply { mkdirs() }
-    val arquivo = File(pastaFotos, "crismando_${crismandoId}_${System.currentTimeMillis()}.jpg")
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        arquivo
-    )
-    return Pair(arquivo, uri)
+            arquivoDestino.absolutePath
+        }.getOrNull()
+    }
 }

@@ -25,18 +25,22 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
 import com.example.chama.FiltroPresenca
 import com.example.chama.ui.MainViewModel
+import com.example.chama.utils.PdfPresencaGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 
 @Composable
-fun FiltroPresenca (
+fun FiltroPresenca(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
     val filtroSelecionado by viewModel.filtroPresencaSelecionado
     val totalPresentes by viewModel.totalPresentes.collectAsState()
     val totalAusentes by viewModel.totalAusentes.collectAsState()
+
+    val crismandos by viewModel.listaCrismandosOriginal.collectAsState()
+    val todasPresencas by viewModel.todasPresencas.collectAsState()
+    val diasComChamada by viewModel.diasComChamada.collectAsState()
 
     val context = LocalContext.current
 
@@ -49,7 +53,7 @@ fun FiltroPresenca (
             label = "Todos",
             icone = null,
             selecionado = filtroSelecionado == FiltroPresenca.TODOS,
-            modifier = Modifier.weight(1f) // Divide o espaço igualmente
+            modifier = Modifier.weight(1f)
         ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.TODOS)
         }
@@ -58,7 +62,7 @@ fun FiltroPresenca (
             label = " ($totalPresentes)",
             icone = Icons.Default.CheckCircle,
             selecionado = filtroSelecionado == FiltroPresenca.PRESENTES,
-            modifier = Modifier.weight(1f) // Divide o espaço igualmente
+            modifier = Modifier.weight(1f)
         ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.PRESENTES)
         }
@@ -67,31 +71,38 @@ fun FiltroPresenca (
             label = " ($totalAusentes)",
             icone = Icons.Default.Close,
             selecionado = filtroSelecionado == FiltroPresenca.AUSENTES,
-            modifier = Modifier.weight(1f) // Divide o espaço igualmente
+            modifier = Modifier.weight(1f)
         ) {
             viewModel.alterarFiltroPresenca(FiltroPresenca.AUSENTES)
         }
 
+        // Botão de Exportar direto para o Diário de Presenças em PDF
         FilledTonalIconButton(
             onClick = {
                 viewModel.viewModelScope.launch(Dispatchers.IO) {
-                    val dadosCsv = viewModel.exportarPresencasCSV()
+                    // Busca as presenças atualizadas diretamente do banco para não usar snapshot defasado
+                    val presencasAtualizadas = viewModel.obterTodasPresencasAtualizadas()
 
-                    val file = File(context.cacheDir, "relatorio_presenca.csv")
-                    file.writeText(dadosCsv, charset = Charsets.UTF_8)
+                    val pdfFile = PdfPresencaGenerator.gerarPdfPresencas(
+                        context = context,
+                        crismandos = viewModel.listaCrismandosOriginal.value,
+                        diasComChamada = viewModel.diasComChamada.value,
+                        todasPresencas = presencasAtualizadas,
+                        dataLimite = viewModel.dataDeHoje
+                    )
 
                     val uri = FileProvider.getUriForFile(
                         context,
                         "${context.packageName}.provider",
-                        file
+                        pdfFile
                     )
 
                     val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/csv"
+                        type = "application/pdf"
                         putExtra(Intent.EXTRA_STREAM, uri)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    context.startActivity(Intent.createChooser(intent, "Exportar Planilha"))
+                    context.startActivity(Intent.createChooser(intent, "Compartilhar Diário de Presenças"))
                 }
             },
             shape = RoundedCornerShape(6.dp),
@@ -100,16 +111,11 @@ fun FiltroPresenca (
                 contentColor = Color.White
             )
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-
-                    )
-            }
+            Icon(
+                imageVector = Icons.Default.Share,
+                contentDescription = "Compartilhar Diário de Presenças em PDF",
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
