@@ -111,6 +111,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("androidx.test:core-ktx:1.6.1")
+    testImplementation("androidx.test.ext:junit-ktx:1.2.1")
+    testImplementation("androidx.work:work-testing:2.9.1")
 }
 
 jacoco {
@@ -141,7 +144,9 @@ tasks.register<JacocoReport>("jacocoCombinedReport") {
         "**/*_ViewBinding*",
         "**/ui/screens/**",
         "**/ui/theme/**",
-        "**/ui/components/**"
+        "**/ui/components/**",
+        "**/MainActivity*.*",
+        "**/ChamaApplication*.*"
     )
 
     val buildDir = project.layout.buildDirectory.get().asFile
