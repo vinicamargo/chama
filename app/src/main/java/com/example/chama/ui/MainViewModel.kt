@@ -230,61 +230,10 @@ class MainViewModel(
     val todasPresencas: StateFlow<List<Presenca>> = presencaDao.buscarTodasAsPresencas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun exportarPresencasCSV(): String {
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
-
-        val crismandos = listaCrismandosOriginal.value
-        val datasIso = diasComChamada.value.sorted()
-        val datasFormatadas = datasIso.map { dataIso ->
-            runCatching { LocalDate.parse(dataIso).format(formatter) }.getOrDefault(dataIso)
+    suspend fun obterTodasPresencasAtualizadas(): List<Presenca> {
+        return withContext(Dispatchers.IO) {
+            presencaDao.buscarTodasAsPresencasStatic()
         }
-        val todasPresencas = presencaDao.buscarTodasAsPresencasStatic()
-
-        // Mapeamento rápido por (crismandoId, dataIso)
-        val mapaPresencas = todasPresencas.associate { presenca ->
-            Pair(presenca.crismandoId, presenca.data) to presenca.estaPresente
-        }
-
-        val csv = StringBuilder()
-        csv.append("\uFEFF") // BOM UTF-8 para compatibilidade com Excel
-
-        // 1. Cabeçalho com 6 colunas fixas + datas dos encontros
-        val colunasCabecalho = listOf(
-            "Nome",
-            "FotoUrl",
-            "DataNascimento",
-            "Telefone",
-            "NomeResponsavel",
-            "TelefoneResponsavel"
-        ) + datasFormatadas
-        csv.append(colunasCabecalho.joinToString(",")).append("\n")
-
-        crismandos.forEach { crismando ->
-            val dadosCadastrais = listOf(
-                crismando.nome,
-                crismando.fotoUrl ?: "",
-                crismando.dataNascimento ?: "",
-                crismando.telefone ?: "",
-                crismando.nomeResponsavel ?: "",
-                crismando.telefoneResponsavel ?: ""
-            )
-
-            val statusPresencas = datasIso.map { dataStr ->
-                val dataEncontro = runCatching { LocalDate.parse(dataStr) }.getOrNull()
-
-                if (dataEncontro != null && dataEncontro <= dataDeHoje) {
-                    val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
-                    if (estaPresente) "O" else "F"
-                } else {
-                    ""
-                }
-            }
-
-            val linhaCompleta = (dadosCadastrais + statusPresencas).joinToString(",")
-            csv.append(linhaCompleta).append("\n")
-        }
-
-        return csv.toString()
     }
 
     fun exportarBackupCompletoCSV(): String {
@@ -345,16 +294,9 @@ class MainViewModel(
                 textoBlocos
             )
 
-            // Presenças padronizadas com 'O' ou 'F' até a data limite parametrizada
             val statusPresencas = datasIso.map { dataStr ->
-                val dataEncontro = runCatching { LocalDate.parse(dataStr) }.getOrNull()
-
-                if (dataEncontro != null && dataEncontro <= dataDeHoje) {
-                    val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
-                    if (estaPresente) "O" else "F"
-                } else {
-                    "" // Datas futuras ficam vazias
-                }
+                val estaPresente = mapaPresencas[Pair(crismando.crismandoId, dataStr)] ?: false
+                if (estaPresente) "O" else "F"
             }
 
             val linhaCompleta = (dadosCadastrais + statusPresencas).joinToString(",")
@@ -536,27 +478,6 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             rifaDao.atualizarPagamentoBloco(rifa.bloco, !rifa.estaPaga)
         }
-    }
-
-    fun exportarRifasCSV(): String {
-        val rifas = listaRifas.value
-        val nomesVendedores = mapaNomeVendedores.value
-
-        val blocosAgrupados = rifas.groupBy { it.bloco }
-
-        val csv = StringBuilder()
-        csv.append("\uFEFF")
-        csv.append("Bloco, Range Rifas, Vendedor, Status Pagamento\n")
-
-        blocosAgrupados.toSortedMap().forEach { (numBloco, rifasDoBloco) ->
-            val primeiro = rifasDoBloco.first()
-            val rangeRifas = "${primeiro.numero}-${primeiro.numero + 9}"
-            val nome = nomesVendedores[primeiro.vendedorId] ?: "Sem vendedor"
-            val statusPgto = if (primeiro.estaPaga) "Pago" else "Pendente"
-            csv.append("$numBloco,$rangeRifas,$nome,$statusPgto\n")
-        }
-
-        return csv.toString()
     }
 
     fun atualizarCrismando(crismando: Crismando) {

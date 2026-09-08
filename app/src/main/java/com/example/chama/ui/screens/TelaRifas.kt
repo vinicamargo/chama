@@ -176,41 +176,6 @@ fun TelaRifas(
                             Text("Novo vendedor")
                         }
                     }
-
-                    SmallFloatingActionButton(
-                        onClick = {
-                            viewModel.viewModelScope.launch(Dispatchers.IO) {
-                                val dadosCsv = viewModel.exportarRifasCSV()
-                                val file = File(context.cacheDir, "relatorio_rifas.csv")
-                                file.writeText(dadosCsv, charset = Charsets.UTF_8)
-
-                                val uri = FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.provider",
-                                    file
-                                )
-
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/csv"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(intent, "Exportar Rifas"))
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.offset(x = (-4).dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = null)
-                            Spacer(modifier = Modifier.padding(4.dp))
-                            Text("Exportar")
-                        }
-                    }
                 }
 
                 FloatingActionButton(
