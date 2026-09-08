@@ -186,7 +186,13 @@ class MainViewModel(
 
     fun registrarCrismando(crismando: Crismando) {
         viewModelScope.launch(Dispatchers.IO) {
-            val novoId = crismandoDao.inserir(crismando)
+            val crismandoComGenero = if (crismando.genero == null) {
+                crismando.copy(genero = GeneroUtils.inferirGenero(crismando.nome))
+            } else {
+                crismando
+            }
+
+            val novoId = crismandoDao.inserir(crismandoComGenero)
 
             vendedorDao.inserirVendedor(
                 Vendedor(
@@ -196,7 +202,6 @@ class MainViewModel(
             )
 
             val todosDiasCrisma = diasComChamada.value
-
             val listaPresencaInicial = todosDiasCrisma.map { data ->
                 Presenca(
                     crismandoId = novoId,
@@ -371,14 +376,14 @@ class MainViewModel(
                 val cabecalho = parseCsvLine(linhas[0])
                 val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
-                // Extrai datas dos domingos a partir da coluna 7 (após BlocosRifa)[cite: 1]
+                // Extrai datas dos domingos a partir da coluna 7 (após BlocosRifa)
                 val datasLista = if (cabecalho.size > 7) {
                     cabecalho.drop(7).mapNotNull { dataStr ->
                         runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
                     }
                 } else emptyList()
 
-                // Identifica o maior bloco de rifas para gerar os cartões
+                // Identifica o maior bloco de rifas para instanciar as rifas no banco
                 val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
                 val maiorBloco = linhasDados.maxOfOrNull { colunas ->
                     val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
@@ -402,7 +407,7 @@ class MainViewModel(
                     rifaDao.inserirRifas(listaRifasIniciais)
                 }
 
-                // 2. Insere os crismandos atribuindo a fotoUrl diretamente do CSV
+                // 2. Insere os crismandos persistindo o gênero inferido pelo nome
                 linhasDados.forEach { colunas ->
                     val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
                     if (nome.isBlank()) return@forEach
@@ -415,11 +420,12 @@ class MainViewModel(
 
                     val crismando = Crismando(
                         nome = nome,
-                        fotoUrl = fotoUrl, // Pega diretamente o link da internet
+                        fotoUrl = fotoUrl,
                         dataNascimento = dataNasc,
                         telefone = tel,
                         nomeResponsavel = nomeResp,
-                        telefoneResponsavel = telResp
+                        telefoneResponsavel = telResp,
+                        genero = GeneroUtils.inferirGenero(nome)
                     )
 
                     val novoId = crismandoDao.inserir(crismando)

@@ -108,8 +108,6 @@ fun TelaPainelGerencial(
 
         object {
             val encontros = totalEncontros
-            val presentes = totalPresentes
-            val faltas = totalFaltas
             val porcentagem = porcentagemGeral
             val mediaFaltas = mediaFaltasPorEncontro
         }
@@ -250,11 +248,6 @@ fun TelaPainelGerencial(
                     mediaFaltasPorEncontro = metricasGerais.mediaFaltas
                 )
 
-                CardProximosAniversarios(
-                    lista = proximosAniversariantes,
-                    onCrismandoClick = { crismandoDetalhes = it }
-                )
-
                 CardCrismandosPorFaltas(
                     lista = listaCrismandosComFaltas,
                     onCrismandoClick = { crismandoDetalhes = it }
@@ -269,6 +262,11 @@ fun TelaPainelGerencial(
                     totalMeninos = totalMeninos,
                     totalMeninas = totalMeninas,
                     total = totalCrismandos
+                )
+
+                CardProximosAniversarios(
+                    lista = proximosAniversariantes,
+                    onCrismandoClick = { crismandoDetalhes = it }
                 )
             }
 
