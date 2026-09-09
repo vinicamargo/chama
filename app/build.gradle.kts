@@ -195,6 +195,7 @@ sonar {
         property(
             "sonar.coverage.jacoco.xmlReportPaths",
             listOf(
+                "${layout.buildDirectory.get()}/reports/coverage/test/dev/debug/report.xml",
                 "${layout.buildDirectory.get()}/reports/coverage/test/devDebug/report.xml",
                 "${layout.buildDirectory.get()}/reports/jacoco/createDevDebugUnitTestCoverageReport/createDevDebugUnitTestCoverageReport.xml"
             ).joinToString(",")

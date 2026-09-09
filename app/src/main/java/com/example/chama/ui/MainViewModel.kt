@@ -23,6 +23,7 @@ import com.example.chama.utils.FileUtils
 import com.example.chama.utils.GeneroUtils
 import com.example.chama.utils.NormalizacaoUtils
 import com.example.chama.utils.ZipBackupUtils
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +49,8 @@ class MainViewModel(
     private val crismandoDao: CrismandoDao,
     private val presencaDao: PresencaDao,
     private val vendedorDao: VendedorDao,
-    private val rifaDao: RifaDao
+    private val rifaDao: RifaDao,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     val dataDeHoje: LocalDate = if (BuildConfig.DATA_CORTE_MOCK.isNotBlank()) {
@@ -185,7 +187,7 @@ class MainViewModel(
         private set
 
     fun registrarCrismando(crismando: Crismando) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val crismandoComGenero = if (crismando.genero == null) {
                 crismando.copy(genero = GeneroUtils.inferirGenero(crismando.nome))
             } else {
@@ -232,7 +234,7 @@ class MainViewModel(
     }
 
     fun alternarPresenca(id: Long, data: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val isPresenteHoje = presencaDao.buscarPresencaDoDiaPorCrismando(id, data)
             presencaDao.atualizarPresenca(id, data, !isPresenteHoje)
         }
@@ -242,7 +244,7 @@ class MainViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     suspend fun obterTodasPresencasAtualizadas(): List<Presenca> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             presencaDao.buscarTodasAsPresencasStatic()
         }
     }
@@ -254,7 +256,7 @@ class MainViewModel(
     }
 
     fun registrarVendedor(nome: String, tipoVendedor: TipoVendedor) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val vendedor = Vendedor(
                 vendedorId = Random.nextLong(1, Long.MAX_VALUE),
                 tipo = tipoVendedor,
@@ -270,31 +272,31 @@ class MainViewModel(
     }
 
     fun vincularVendedorAoBloco(vendedorId: Long, bloco: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
         }
     }
 
     fun desvincularVendedorDoBloco(bloco: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             rifaDao.desvincularVendedorDoBloco(bloco)
         }
     }
 
     fun alternarPagamentoRifa(rifa: Rifa) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             rifaDao.atualizarPagamentoBloco(rifa.bloco, !rifa.estaPaga)
         }
     }
 
     fun atualizarCrismando(crismando: Crismando) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             crismandoDao.atualizar(crismando)
         }
     }
 
     fun excluirCrismando(crismandoId: Long) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             rifaDao.desvincularRifasDoVendedor(crismandoId)
             presencaDao.deletarPresencasPorCrismando(crismandoId)
             vendedorDao.deletarVendedorPorId(crismandoId)
@@ -304,7 +306,7 @@ class MainViewModel(
 
     fun gerarBlocosEmLote(quantidadeBlocos: Int) {
         if (quantidadeBlocos <= 0) return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val ultimoNumero = rifaDao.getMaiorNumeroRifa()
             val totalRifasParaCriar = quantidadeBlocos * 10
 
@@ -329,7 +331,7 @@ class MainViewModel(
         onResultado: (sucesso: Boolean, emUso: Int) -> Unit = { _, _ -> }
     ) {
         if (quantidadeBlocos <= 0) return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val emUso = rifaDao.contarRifasEmUsoNosUltimosBlocos(quantidadeBlocos)
 
             if (emUso > 0 && !forcar) {
@@ -347,7 +349,7 @@ class MainViewModel(
     }
 
     fun importarBackupZip(context: Context, uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             try {
                 var arquivoCsv: File? = null
 
@@ -469,7 +471,7 @@ class MainViewModel(
         }
     }
 
-    suspend fun exportarBackupCompletoZip(context: Context): File = withContext(Dispatchers.IO) {
+    suspend fun exportarBackupCompletoZip(context: Context): File = withContext(ioDispatcher) {
         val dadosCsv = exportarBackupCompletoCSV()
         val crismandos = listaCrismandosOriginal.value
 

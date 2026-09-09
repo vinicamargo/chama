@@ -89,7 +89,7 @@ class MainViewModelTest {
         coEvery { presencaDao.buscarTodasAsPresencas() } returns todasPresencasFlow
         coEvery { presencaDao.buscarTodasAsPresencasStatic() } returns emptyList()
 
-        viewModel = MainViewModel(crismandoDao, presencaDao, vendedorDao, rifaDao)
+        viewModel = MainViewModel(crismandoDao, presencaDao, vendedorDao, rifaDao, testDispatcher)
     }
 
     @After
@@ -139,7 +139,7 @@ class MainViewModelTest {
         coEvery { mockPresencaDao.buscarDiasComPresencas() } returns flowOf(listOf("2025-01-01", "2025-01-08"))
         coEvery { mockPresencaDao.buscarPresencasPorData(any()) } returns flowOf(emptyList())
 
-        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao)
+        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao, testDispatcher)
         advanceUntilIdle()
 
         assertEquals("2025-01-01", localViewModel.diaSelecionado.value)
@@ -151,7 +151,7 @@ class MainViewModelTest {
         coEvery { mockPresencaDao.buscarDiasComPresencas() } returns flowOf(emptyList())
         coEvery { mockPresencaDao.buscarPresencasPorData(any()) } returns flowOf(emptyList())
 
-        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao)
+        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao, testDispatcher)
         advanceUntilIdle()
 
         assertEquals("", localViewModel.diaSelecionado.value)
@@ -469,10 +469,11 @@ class MainViewModelTest {
             emUso = u
         }
 
-        coVerify(timeout = 2000) {
+        advanceUntilIdle()
+
+        coVerify {
             rifaDao.contarRifasEmUsoNosUltimosBlocos(2)
         }
-        advanceUntilIdle()
 
         assertEquals(false, sucesso)
         assertEquals(3, emUso)
@@ -489,8 +490,9 @@ class MainViewModelTest {
             sucesso = s
         }
 
-        coVerify(timeout = 2000) { rifaDao.excluirUltimosBlocos(2) }
         advanceUntilIdle()
+
+        coVerify { rifaDao.excluirUltimosBlocos(2) }
 
         assertEquals(true, sucesso)
     }
@@ -505,8 +507,9 @@ class MainViewModelTest {
             sucesso = s
         }
 
-        coVerify(timeout = 2000) { rifaDao.excluirUltimosBlocos(2) }
         advanceUntilIdle()
+
+        coVerify { rifaDao.excluirUltimosBlocos(2) }
 
         assertEquals(true, sucesso)
     }
