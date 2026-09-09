@@ -71,14 +71,11 @@ object ZipBackupUtils {
         }.getOrNull()
     }
 
-    /**
-     * Retorna o arquivo CSV temporário e um mapa de [ChaveUnica -> Novo Caminho Físico no filesDir]
-     */
     fun descompactarZipBackup(
         context: Context,
         uriZip: Uri
     ): Pair<File, Map<String, String>> {
-        val pastaDestinoFotos = File(context.filesDir, "fotos_crismandos").apply { mkdirs() }
+        val pastaFotosDestino = File(context.filesDir, "fotos_crismandos").apply { mkdirs() }
         val pastaCacheTemp = File(context.cacheDir, "temp_unzip_${System.currentTimeMillis()}").apply { mkdirs() }
         var arquivoCsvExtraido: File? = null
         val mapaNovosCaminhosFotos = mutableMapOf<String, String>()
@@ -86,21 +83,39 @@ object ZipBackupUtils {
         context.contentResolver.openInputStream(uriZip)?.use { inputStream ->
             ZipInputStream(BufferedInputStream(inputStream)).use { zis ->
                 var entry: ZipEntry? = zis.nextEntry
+                // Dentro do laço de leitura do ZipInputStream:
                 while (entry != null) {
                     val nome = entry.name
 
                     if (nome == "dados.csv") {
                         val csvTemp = File(pastaCacheTemp, "dados.csv")
+
+                        val destinoDirCanonical = pastaCacheTemp.canonicalPath
+                        val arquivoDestinoCanonical = csvTemp.canonicalPath
+                        if (!arquivoDestinoCanonical.startsWith(destinoDirCanonical + File.separator)) {
+                            throw SecurityException("Entrada ZIP inválida tentando sair do diretório: $nome")
+                        }
+
                         FileOutputStream(csvTemp).use { fos -> zis.copyTo(fos) }
                         arquivoCsvExtraido = csvTemp
                     } else if (nome.startsWith("fotos/") && !entry.isDirectory) {
-                        // Extrai a chave única do nome do arquivo (ex: "fotos/perfil_fa2d2716.jpg" -> "fa2d2716")
-                        val chave = nome.substringAfter("perfil_").substringBefore(".jpg")
-                        val nomeArquivoDestino = "perfil_$chave.jpg"
-                        val fotoDestinoFinal = File(pastaDestinoFotos, nomeArquivoDestino)
+                        val nomeArquivoDestino = File(nome).name
+                        val arquivoFotoDestino = File(pastaFotosDestino, nomeArquivoDestino)
 
-                        FileOutputStream(fotoDestinoFinal, false).use { fos -> zis.copyTo(fos) }
-                        mapaNovosCaminhosFotos[chave] = fotoDestinoFinal.absolutePath
+                        val destinoDirCanonical = pastaFotosDestino.canonicalPath
+                        val arquivoDestinoCanonical = arquivoFotoDestino.canonicalPath
+                        if (!arquivoDestinoCanonical.startsWith(destinoDirCanonical + File.separator)) {
+                            throw SecurityException("Tentativa de Zip Slip detectada na foto: $nome")
+                        }
+
+                        FileOutputStream(arquivoFotoDestino).use { fos -> zis.copyTo(fos) }
+
+                        val chave = nomeArquivoDestino
+                            .removePrefix("perfil_")
+                            .substringBeforeLast(".")
+                        if (chave.isNotBlank()) {
+                            mapaNovosCaminhosFotos[chave] = arquivoFotoDestino.absolutePath
+                        }
                     }
 
                     zis.closeEntry()
