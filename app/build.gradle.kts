@@ -36,7 +36,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -188,6 +189,7 @@ tasks.register<JacocoReport>("jacocoCombinedReport") {
 sonar {
     properties {
         property("sonar.projectKey", "vinicamargo_chama")
+        property("sonar.projectName", "CHAMA")
         property("sonar.organization", "vinicamargo")
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.sourceEncoding", "UTF-8")
@@ -215,4 +217,8 @@ sonar {
             ).joinToString(",")
         )
     }
+}
+
+dependencyLocking {
+    lockAllConfigurations()
 }
