@@ -12,16 +12,25 @@ import java.util.concurrent.TimeUnit
 
 object NotificacaoAgendador {
 
-    fun agendarNotificacaoDiaria(context: Context) {
-        val agora = LocalDateTime.now()
-        val horarioAlvo = LocalTime.of(23, 18)
+    // Regra pura: calcula quantos milissegundos faltam para a próxima execução
+    fun calcularDelayInicial(
+        agora: LocalDateTime,
+        horarioAlvo: LocalTime = LocalTime.of(8, 0)
+    ): Long {
         var proximaExecucao = agora.toLocalDate().atTime(horarioAlvo)
 
-        if (agora.isAfter(proximaExecucao)) {
+        if (agora.isAfter(proximaExecucao) || agora.isEqual(proximaExecucao)) {
             proximaExecucao = proximaExecucao.plusDays(1)
         }
 
-        val delayInicial = Duration.between(agora, proximaExecucao).toMillis()
+        return Duration.between(agora, proximaExecucao).toMillis()
+    }
+
+    fun agendarNotificacaoDiaria(context: Context) {
+        val delayInicial = calcularDelayInicial(
+            agora = LocalDateTime.now(),
+            horarioAlvo = LocalTime.of(8, 0)
+        )
 
         val workRequest = PeriodicWorkRequestBuilder<AniversarioWorker>(24, TimeUnit.HOURS)
             .setInitialDelay(delayInicial, TimeUnit.MILLISECONDS)

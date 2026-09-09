@@ -31,12 +31,11 @@ object NormalizacaoUtils {
 
         var digitos = telefoneBruto.filter { it.isDigit() }
 
-        // Remove prefixo 55 caso o formulário tenha capturado com código de país
         if (digitos.startsWith("55") && digitos.length in 12..13) {
             digitos = digitos.substring(2)
         }
 
-        return if (digitos.length in 10..11) digitos else digitos.ifBlank { null }
+        return if (digitos.length in 10..11) digitos else null
     }
 
     fun normalizarDataNascimento(dataBruta: String?): String? {
