@@ -109,6 +109,13 @@ object ZipBackupUtils {
                         }
 
                         FileOutputStream(arquivoFotoDestino).use { fos -> zis.copyTo(fos) }
+
+                        val chave = nomeArquivoDestino
+                            .removePrefix("perfil_")
+                            .substringBeforeLast(".")
+                        if (chave.isNotBlank()) {
+                            mapaNovosCaminhosFotos[chave] = arquivoFotoDestino.absolutePath
+                        }
                     }
 
                     zis.closeEntry()
