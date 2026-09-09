@@ -43,7 +43,7 @@ import com.example.chama.ui.components.gerencial.CardFaixaEtaria
 import com.example.chama.ui.components.gerencial.CardFrequenciaGeral
 import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
 import com.example.chama.ui.components.gerencial.CardProximosAniversarios
-import com.example.chama.ui.components.presencas.DetalhesCrismando
+import com.example.chama.ui.components.geral.DetalhesCrismando
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit

@@ -1,6 +1,7 @@
-package com.example.chama.ui.components.presencas
+package com.example.chama.ui.components.geral
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -149,7 +150,7 @@ fun DetalhesCrismando(
             aspectRatioX = 1,
             aspectRatioY = 1,
             guidelines = CropImageView.Guidelines.ON,
-            outputCompressFormat = android.graphics.Bitmap.CompressFormat.JPEG,
+            outputCompressFormat = Bitmap.CompressFormat.JPEG,
             outputCompressQuality = 90,
             imageSourceIncludeCamera = !apenasGaleria,
             imageSourceIncludeGallery = !apenasCamera
