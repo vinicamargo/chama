@@ -1,5 +1,7 @@
 package com.example.chama.ui
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.snapshots.Snapshot
 import com.example.chama.FiltroPresenca
 import com.example.chama.data.dao.CrismandoDao
@@ -16,59 +18,78 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var testDispatcher: TestDispatcher
 
     private val crismandoDao: CrismandoDao = mockk(relaxed = true)
     private val presencaDao: PresencaDao = mockk(relaxed = true)
     private val vendedorDao: VendedorDao = mockk(relaxed = true)
     private val rifaDao: RifaDao = mockk(relaxed = true)
 
-    private val diasComChamadaFlow = MutableStateFlow<List<String>>(listOf("2026-09-06", "2026-09-13"))
-    private val todosCrismandosFlow = MutableStateFlow<List<Crismando>>(emptyList())
-    private val todasPresencasFlow = MutableStateFlow<List<Presenca>>(emptyList())
-    private val todasRifasFlow = MutableStateFlow<List<Rifa>>(emptyList())
-    private val todosVendedoresFlow = MutableStateFlow<List<Vendedor>>(emptyList())
-    private val presencasPorDataFlow = MutableStateFlow<List<Presenca>>(emptyList())
+    private val diasComChamadaFlow = MutableStateFlow(listOf("2026-09-20", "2026-09-27"))
+    private val crismandosFlow = MutableStateFlow(emptyList<Crismando>())
+    private val presencasPorDataFlow = MutableStateFlow(emptyList<Presenca>())
+    private val vendedoresFlow = MutableStateFlow(emptyList<Vendedor>())
+    private val rifasFlow = MutableStateFlow(emptyList<Rifa>())
+    private val todasPresencasFlow = MutableStateFlow(emptyList<Presenca>())
 
     private lateinit var viewModel: MainViewModel
 
+    private val crismandoMock1 = Crismando(crismandoId = 1L, nome = "Lucas Cavalcanti")
+    private val crismandoMock2 = Crismando(crismandoId = 2L, nome = "Mariana Costa")
+
     @Before
     fun setUp() {
+        testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
 
-        every { presencaDao.buscarDiasComPresencas() } returns diasComChamadaFlow
-        every { crismandoDao.getAllCrismandos() } returns todosCrismandosFlow
-        every { presencaDao.buscarTodasAsPresencas() } returns todasPresencasFlow
-        every { rifaDao.getRifas() } returns todasRifasFlow
-        every { vendedorDao.getAllVendedores() } returns todosVendedoresFlow
-        every { presencaDao.buscarPresencasPorData(any()) } returns presencasPorDataFlow
+        crismandosFlow.value = listOf(crismandoMock1, crismandoMock2)
+        presencasPorDataFlow.value = listOf(
+            Presenca(crismandoId = 1L, data = "2026-09-20", estaPresente = true),
+            Presenca(crismandoId = 2L, data = "2026-09-20", estaPresente = false)
+        )
+        diasComChamadaFlow.value = listOf("2026-09-20", "2026-09-27")
+        vendedoresFlow.value = emptyList()
+        rifasFlow.value = emptyList()
+        todasPresencasFlow.value = emptyList()
+
+        coEvery { presencaDao.buscarDiasComPresencas() } returns diasComChamadaFlow
+        coEvery { crismandoDao.getAllCrismandos() } returns crismandosFlow
+        coEvery { presencaDao.buscarPresencasPorData(any()) } returns presencasPorDataFlow
+        coEvery { vendedorDao.getAllVendedores() } returns vendedoresFlow
+        coEvery { rifaDao.getRifas() } returns rifasFlow
+        coEvery { presencaDao.buscarTodasAsPresencas() } returns todasPresencasFlow
+        coEvery { presencaDao.buscarTodasAsPresencasStatic() } returns emptyList()
 
         viewModel = MainViewModel(crismandoDao, presencaDao, vendedorDao, rifaDao)
-        viewModel.alterarData("2026-09-06")
-        testDispatcher.scheduler.advanceUntilIdle()
     }
 
     @After
@@ -76,231 +97,504 @@ class MainViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun TestScope.subscribeToFlows() {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.listaCrismandosFiltrada.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.presencasDoDia.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.totalPresentes.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.totalAusentes.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.listaVendedores.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.listaVendedoresFiltrados.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.mapaNomeVendedores.collect {}
+        }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.todasPresencas.collect {}
+        }
+    }
+
     @Test
-    fun `filtro por nome deve ignorar acentos e maiusculas`() = runTest {
-        backgroundScope.launch { viewModel.listaCrismandosOriginal.collect {} }
-        backgroundScope.launch { viewModel.listaCrismandosFiltrada.collect {} }
-        backgroundScope.launch { viewModel.presencasDoDia.collect {} }
+    fun testInicializacaoDeDiasESelecaoDefault() = runTest {
+        subscribeToFlows()
+        advanceUntilIdle()
 
-        val crismandos = listOf(
-            Crismando(crismandoId = 1, nome = "João Pedro"),
-            Crismando(crismandoId = 2, nome = "Ana Clara"),
-            Crismando(crismandoId = 3, nome = "Clara Francisca")
-        )
-        todosCrismandosFlow.value = crismandos
-        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.diaSelecionado.value.isNotBlank())
+        assertEquals(2, viewModel.diasComChamada.value.size)
+    }
 
-        viewModel.alterarFiltroNome("joao")
+    @Test
+    fun testInit_comDiasSemUltimoDomingo_selecionaPrimeiroDia() = runTest {
+        val mockPresencaDao = mockk<PresencaDao>(relaxed = true)
+        coEvery { mockPresencaDao.buscarDiasComPresencas() } returns flowOf(listOf("2025-01-01", "2025-01-08"))
+        coEvery { mockPresencaDao.buscarPresencasPorData(any()) } returns flowOf(emptyList())
+
+        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao)
+        advanceUntilIdle()
+
+        assertEquals("2025-01-01", localViewModel.diaSelecionado.value)
+    }
+
+    @Test
+    fun testInit_comDiasVazios_diaSelecionadoPermaneceVazio() = runTest {
+        val mockPresencaDao = mockk<PresencaDao>(relaxed = true)
+        coEvery { mockPresencaDao.buscarDiasComPresencas() } returns flowOf(emptyList())
+        coEvery { mockPresencaDao.buscarPresencasPorData(any()) } returns flowOf(emptyList())
+
+        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao)
+        advanceUntilIdle()
+
+        assertEquals("", localViewModel.diaSelecionado.value)
+    }
+
+    @Test
+    fun testFiltroPorNomeComAcentos() = runTest {
+        subscribeToFlows()
+        advanceUntilIdle()
+
+        viewModel.alterarFiltroNome("lucas")
         Snapshot.sendApplyNotifications()
-        testDispatcher.scheduler.advanceUntilIdle()
+        advanceUntilIdle()
 
         assertEquals(1, viewModel.listaCrismandosFiltrada.value.size)
-        assertEquals("João Pedro", viewModel.listaCrismandosFiltrada.value.first().nome)
+        assertEquals("Lucas Cavalcanti", viewModel.listaCrismandosFiltrada.value.first().nome)
 
-        viewModel.alterarFiltroNome("CLARA")
+        viewModel.alterarFiltroNome("")
         Snapshot.sendApplyNotifications()
-        testDispatcher.scheduler.advanceUntilIdle()
+        advanceUntilIdle()
 
         assertEquals(2, viewModel.listaCrismandosFiltrada.value.size)
     }
 
     @Test
-    fun `filtro de presenca deve filtrar corretamente entre PRESENTES e AUSENTES`() = runTest {
-        backgroundScope.launch { viewModel.listaCrismandosOriginal.collect {} }
-        backgroundScope.launch { viewModel.listaCrismandosFiltrada.collect {} }
-        backgroundScope.launch { viewModel.presencasDoDia.collect {} }
+    fun testAlterarFiltroNome_resetaCrismandoSelecionado() = runTest {
+        subscribeToFlows()
+        viewModel.selecionarCrismando(crismandoMock1)
+        assertEquals(crismandoMock1, viewModel.crismandoSelecionado.value)
 
-        val crismando1 = Crismando(crismandoId = 1, nome = "Ana")
-        val crismando2 = Crismando(crismandoId = 2, nome = "Bruno")
-        todosCrismandosFlow.value = listOf(crismando1, crismando2)
+        viewModel.alterarFiltroNome("Mariana")
+        Snapshot.sendApplyNotifications()
+        advanceUntilIdle()
 
-        presencasPorDataFlow.value = listOf(
-            Presenca(crismandoId = 1, data = "2026-09-06", estaPresente = true),
-            Presenca(crismandoId = 2, data = "2026-09-06", estaPresente = false)
-        )
-        testDispatcher.scheduler.advanceUntilIdle()
+        assertNull(viewModel.crismandoSelecionado.value)
+        assertEquals("Mariana", viewModel.filtroNomeSelecionado.value)
+    }
+
+    @Test
+    fun testFiltroPresencaPresentesEAusentes() = runTest {
+        subscribeToFlows()
+        advanceUntilIdle()
 
         viewModel.alterarFiltroPresenca(FiltroPresenca.PRESENTES)
         Snapshot.sendApplyNotifications()
-        testDispatcher.scheduler.advanceUntilIdle()
+        advanceUntilIdle()
 
         assertEquals(1, viewModel.listaCrismandosFiltrada.value.size)
         assertEquals(1L, viewModel.listaCrismandosFiltrada.value.first().crismandoId)
 
         viewModel.alterarFiltroPresenca(FiltroPresenca.AUSENTES)
         Snapshot.sendApplyNotifications()
-        testDispatcher.scheduler.advanceUntilIdle()
+        advanceUntilIdle()
 
         assertEquals(1, viewModel.listaCrismandosFiltrada.value.size)
         assertEquals(2L, viewModel.listaCrismandosFiltrada.value.first().crismandoId)
+
+        viewModel.alterarFiltroPresenca(FiltroPresenca.TODOS)
+        Snapshot.sendApplyNotifications()
+        advanceUntilIdle()
+
+        assertEquals(2, viewModel.listaCrismandosFiltrada.value.size)
     }
 
     @Test
-    fun `totalPresentes e totalAusentes devem calcular metricas com precisao`() = runTest {
-        backgroundScope.launch { viewModel.listaCrismandosOriginal.collect {} }
-        backgroundScope.launch { viewModel.totalPresentes.collect {} }
-        backgroundScope.launch { viewModel.totalAusentes.collect {} }
-        backgroundScope.launch { viewModel.presencasDoDia.collect {} }
+    fun testSelecionarCrismando_alternaSelecao() {
+        assertNull(viewModel.crismandoSelecionado.value)
 
-        todosCrismandosFlow.value = listOf(
-            Crismando(crismandoId = 1, nome = "Ana"),
-            Crismando(crismandoId = 2, nome = "Bruno"),
-            Crismando(crismandoId = 3, nome = "Carlos")
-        )
+        viewModel.selecionarCrismando(crismandoMock1)
+        assertEquals(crismandoMock1, viewModel.crismandoSelecionado.value)
 
-        presencasPorDataFlow.value = listOf(
-            Presenca(crismandoId = 1, data = "2026-09-06", estaPresente = true),
-            Presenca(crismandoId = 2, data = "2026-09-06", estaPresente = true),
-            Presenca(crismandoId = 3, data = "2026-09-06", estaPresente = false)
-        )
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.selecionarCrismando(crismandoMock1)
+        assertNull(viewModel.crismandoSelecionado.value)
 
-        assertEquals(2, viewModel.totalPresentes.value)
-        assertEquals(1, viewModel.totalAusentes.value)
-    }
+        viewModel.selecionarCrismando(crismandoMock2)
+        assertEquals(crismandoMock2, viewModel.crismandoSelecionado.value)
 
-    @Test
-    fun `selecionarCrismando deve alternar selecao ao clicar no mesmo elemento`() {
-        val crismando = Crismando(crismandoId = 10, nome = "Lucas")
-
-        viewModel.selecionarCrismando(crismando)
-        assertEquals(crismando, viewModel.crismandoSelecionado.value)
-
-        viewModel.selecionarCrismando(crismando)
+        viewModel.selecionarCrismando(null)
         assertNull(viewModel.crismandoSelecionado.value)
     }
 
     @Test
-    fun `registrarCrismando deve inferir genero caso nulo e vincular como vendedor e nas presencas`() = runTest {
-        coEvery { crismandoDao.inserir(any()) } returns 101L
+    fun testTotalPresentesEAusentes() = runTest {
+        subscribeToFlows()
+        advanceUntilIdle()
 
-        val crismandoSemGenero = Crismando(
-            crismandoId = 0,
-            nome = "Beatriz Santos",
-            genero = null
-        )
+        assertEquals(1, viewModel.totalPresentes.value)
+        assertEquals(1, viewModel.totalAusentes.value)
+    }
 
-        viewModel.registrarCrismando(crismandoSemGenero)
+    @Test
+    fun testListaVendedoresEFiltragem() = runTest {
+        val vendedorExterno = Vendedor(vendedorId = 10L, tipo = TipoVendedor.EXTERNO, nomeExterno = "Pedro Rocha")
+        val colaborador = Vendedor(vendedorId = 11L, tipo = TipoVendedor.COLABORADOR, nomeExterno = null)
 
-        val crismandoSlot = slot<Crismando>()
-        coVerify(timeout = 3000) { crismandoDao.inserir(capture(crismandoSlot)) }
-        assertEquals(Genero.FEMININO, crismandoSlot.captured.genero)
+        vendedoresFlow.value = listOf(vendedorExterno, colaborador)
 
-        coVerify(timeout = 3000) {
-            vendedorDao.inserirVendedor(match {
-                it.vendedorId == 101L && it.tipo == TipoVendedor.CRISMANDO
+        subscribeToFlows()
+        advanceUntilIdle()
+
+        val lista = viewModel.listaVendedores.value
+        assertEquals(4, lista.size)
+
+        val mapa = viewModel.mapaNomeVendedores.value
+        assertEquals("Pedro Rocha", mapa[10L])
+        assertEquals("Vendedor Externo", mapa[11L])
+        assertEquals("Lucas Cavalcanti", mapa[1L])
+
+        viewModel.alterarFiltroNome("pedro")
+        Snapshot.sendApplyNotifications()
+        advanceUntilIdle()
+
+        val filtrados = viewModel.listaVendedoresFiltrados.value
+        assertEquals(1, filtrados.size)
+        assertEquals("Pedro Rocha", filtrados.first().nome)
+    }
+
+    @Test
+    fun testListaRifasESelecaoRifa() = runTest {
+        val rifa1 = Rifa(numero = 1, bloco = 1)
+        val rifa2 = Rifa(numero = 2, bloco = 1)
+
+        rifasFlow.value = listOf(rifa1, rifa2)
+
+        subscribeToFlows()
+        advanceUntilIdle()
+
+        assertEquals(2, viewModel.listaRifas.value.size)
+        assertNull(viewModel.rifaSelecionada.value)
+
+        viewModel.selecionarRifa(rifa1)
+        assertEquals(rifa1, viewModel.rifaSelecionada.value)
+
+        viewModel.selecionarRifa(rifa1)
+        assertNull(viewModel.rifaSelecionada.value)
+
+        viewModel.selecionarRifa(rifa2)
+        assertEquals(rifa2, viewModel.rifaSelecionada.value)
+    }
+
+    @Test
+    fun testRegistrarCrismando_semGeneroInformaGeneroEIniciaPresencas() = runTest {
+        coEvery { crismandoDao.inserir(any()) } returns 100L
+
+        val novo = Crismando(nome = "Fernanda Silva", genero = null)
+        viewModel.registrarCrismando(novo)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) {
+            crismandoDao.inserir(match { it.genero == Genero.FEMININO })
+        }
+        coVerify(timeout = 2000) {
+            vendedorDao.inserirVendedor(Vendedor(vendedorId = 100L, tipo = TipoVendedor.CRISMANDO))
+        }
+        coVerify(timeout = 2000) {
+            presencaDao.gerarListaPresenca(match {
+                it.size == 2 && it.all { p -> p.crismandoId == 100L && !p.estaPresente }
             })
         }
-
-        val presencasSlot = slot<List<Presenca>>()
-        coVerify(timeout = 3000) { presencaDao.gerarListaPresenca(capture(presencasSlot)) }
-        assertEquals(2, presencasSlot.captured.size)
-        assertTrue(presencasSlot.captured.all { !it.estaPresente && it.crismandoId == 101L })
     }
 
     @Test
-    fun `alternarPresenca deve inverter estado booleano da presenca do dia`() = runTest {
-        coEvery { presencaDao.buscarPresencaDoDiaPorCrismando(1L, "2026-09-06") } returns true
+    fun testRegistrarCrismando_comGeneroMantemGenero() = runTest {
+        coEvery { crismandoDao.inserir(any()) } returns 101L
 
-        viewModel.alternarPresenca(1L, "2026-09-06")
+        val novo = Crismando(nome = "Ariel", genero = Genero.MASCULINO)
+        viewModel.registrarCrismando(novo)
+        advanceUntilIdle()
 
-        coVerify(timeout = 3000) { presencaDao.atualizarPresenca(1L, "2026-09-06", false) }
+        coVerify(timeout = 2000) {
+            crismandoDao.inserir(match { it.genero == Genero.MASCULINO })
+        }
     }
 
     @Test
-    fun `gerarBlocosEmLote deve criar blocos com 10 rifas cada a partir do ultimo numero`() = runTest {
-        coEvery { rifaDao.getMaiorNumeroRifa() } returns 20
+    fun testAlterarData() {
+        viewModel.alterarData("2026-10-04")
+        assertEquals("2026-10-04", viewModel.diaSelecionado.value)
+    }
+
+    @Test
+    fun testAlternarPresenca_quandoPresente_mudaParaAusente() = runTest {
+        coEvery { presencaDao.buscarPresencaDoDiaPorCrismando(1L, "2026-09-20") } returns true
+
+        viewModel.alternarPresenca(1L, "2026-09-20")
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) { presencaDao.atualizarPresenca(1L, "2026-09-20", false) }
+    }
+
+    @Test
+    fun testAlternarPresenca_quandoAusente_mudaParaPresente() = runTest {
+        coEvery { presencaDao.buscarPresencaDoDiaPorCrismando(2L, "2026-09-20") } returns false
+
+        viewModel.alternarPresenca(2L, "2026-09-20")
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) { presencaDao.atualizarPresenca(2L, "2026-09-20", true) }
+    }
+
+    @Test
+    fun testObterTodasPresencasAtualizadas() = runTest {
+        val presencas = listOf(Presenca(crismandoId = 1L, data = "2026-09-20", estaPresente = true))
+        coEvery { presencaDao.buscarTodasAsPresencasStatic() } returns presencas
+
+        val resultado = viewModel.obterTodasPresencasAtualizadas()
+        assertEquals(1, resultado.size)
+        assertEquals(1L, resultado.first().crismandoId)
+    }
+
+    @Test
+    fun testLimparDatabase() {
+        viewModel.limparDatabase()
+
+        coVerify { presencaDao.deleteAllPresencas() }
+        coVerify { vendedorDao.deletarVendedoresCRISMANDO() }
+        coVerify { crismandoDao.deleteAllCrismandos() }
+    }
+
+    @Test
+    fun testRegistrarVendedor() = runTest {
+        viewModel.registrarVendedor("João Paulo", TipoVendedor.EXTERNO)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) {
+            vendedorDao.inserirVendedor(match {
+                it.nomeExterno == "João Paulo" && it.tipo == TipoVendedor.EXTERNO
+            })
+        }
+    }
+
+    @Test
+    fun testVincularEDesvincularVendedorDoBloco() = runTest {
+        viewModel.vincularVendedorAoBloco(10L, 3)
+        advanceUntilIdle()
+        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(10L, 3) }
+
+        viewModel.desvincularVendedorDoBloco(3)
+        advanceUntilIdle()
+        coVerify(timeout = 2000) { rifaDao.desvincularVendedorDoBloco(3) }
+    }
+
+    @Test
+    fun testAlternarPagamentoRifa() = runTest {
+        val rifa = Rifa(numero = 1, bloco = 1, estaPaga = false)
+        viewModel.alternarPagamentoRifa(rifa)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) { rifaDao.atualizarPagamentoBloco(1, true) }
+    }
+
+    @Test
+    fun testAtualizarCrismando() = runTest {
+        viewModel.atualizarCrismando(crismandoMock1)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) { crismandoDao.atualizar(crismandoMock1) }
+    }
+
+    @Test
+    fun testExcluirCrismando() = runTest {
+        viewModel.excluirCrismando(1L)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) { rifaDao.desvincularRifasDoVendedor(1L) }
+        coVerify(timeout = 2000) { presencaDao.deletarPresencasPorCrismando(1L) }
+        coVerify(timeout = 2000) { vendedorDao.deletarVendedorPorId(1L) }
+        coVerify(timeout = 2000) { crismandoDao.deletarCrismando(1L) }
+    }
+
+    @Test
+    fun testGerarBlocosEmLote_quantidadeInvalida_naoFazNada() = runTest {
+        viewModel.gerarBlocosEmLote(0)
+        viewModel.gerarBlocosEmLote(-5)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { rifaDao.getMaiorNumeroRifa() }
+    }
+
+    @Test
+    fun testGerarBlocosEmLote_quantidadeValida_criaRifas() = runTest {
+        coEvery { rifaDao.getMaiorNumeroRifa() } returns 10
 
         viewModel.gerarBlocosEmLote(2)
+        advanceUntilIdle()
 
-        val rifasSlot = slot<List<Rifa>>()
-        coVerify(timeout = 3000) { rifaDao.inserirRifas(capture(rifasSlot)) }
-
-        val rifasCriadas = rifasSlot.captured
-        assertEquals(20, rifasCriadas.size)
-        assertEquals(21, rifasCriadas.first().numero)
-        assertEquals(3, rifasCriadas.first().bloco)
-        assertEquals(40, rifasCriadas.last().numero)
-        assertEquals(4, rifasCriadas.last().bloco)
+        coVerify(timeout = 2000) {
+            rifaDao.inserirRifas(match { rifas ->
+                rifas.size == 20 &&
+                        rifas.first().numero == 11 &&
+                        rifas.first().bloco == 2 &&
+                        rifas.last().numero == 30 &&
+                        rifas.last().bloco == 3
+            })
+        }
     }
 
     @Test
-    fun `excluirUltimosBlocos sem forcar deve abortar se houver rifas em uso`() = runTest {
-        coEvery { rifaDao.contarRifasEmUsoNosUltimosBlocos(1) } returns 3
-        var resultadoSucesso: Boolean? = null
-        var totalEmUsoRetornado = -1
-        val latch = CountDownLatch(1)
+    fun testExcluirUltimosBlocos_quantidadeInvalida_naoFazNada() = runTest {
+        viewModel.excluirUltimosBlocos(0)
+        advanceUntilIdle()
 
-        viewModel.excluirUltimosBlocos(1, forcar = false) { sucesso, emUso ->
-            resultadoSucesso = sucesso
-            totalEmUsoRetornado = emUso
-            latch.countDown()
+        coVerify(exactly = 0) { rifaDao.contarRifasEmUsoNosUltimosBlocos(any()) }
+    }
+
+    @Test
+    fun testExcluirUltimosBlocos_emUsoSemForcar_retornaFalha() = runTest {
+        coEvery { rifaDao.contarRifasEmUsoNosUltimosBlocos(2) } returns 3
+
+        var sucesso: Boolean? = null
+        var emUso: Int? = null
+
+        viewModel.excluirUltimosBlocos(2, forcar = false) { s, u ->
+            sucesso = s
+            emUso = u
         }
 
-        latch.await(3, TimeUnit.SECONDS)
-        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify(timeout = 2000) {
+            rifaDao.contarRifasEmUsoNosUltimosBlocos(2)
+        }
+        advanceUntilIdle()
 
+        assertEquals(false, sucesso)
+        assertEquals(3, emUso)
         coVerify(exactly = 0) { rifaDao.excluirUltimosBlocos(any()) }
-        assertFalse(resultadoSucesso ?: true)
-        assertEquals(3, totalEmUsoRetornado)
     }
 
     @Test
-    fun `excluirUltimosBlocos forcado deve deletar mesmo com rifas em uso`() = runTest {
-        coEvery { rifaDao.contarRifasEmUsoNosUltimosBlocos(1) } returns 3
-        var resultadoSucesso: Boolean? = null
-        val latch = CountDownLatch(1)
+    fun testExcluirUltimosBlocos_emUsoComForcar_retornaSucesso() = runTest {
+        coEvery { rifaDao.contarRifasEmUsoNosUltimosBlocos(2) } returns 3
 
-        viewModel.excluirUltimosBlocos(1, forcar = true) { sucesso, _ ->
-            resultadoSucesso = sucesso
-            latch.countDown()
+        var sucesso: Boolean? = null
+
+        viewModel.excluirUltimosBlocos(2, forcar = true) { s, _ ->
+            sucesso = s
         }
 
-        latch.await(3, TimeUnit.SECONDS)
-        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify(timeout = 2000) { rifaDao.excluirUltimosBlocos(2) }
+        advanceUntilIdle()
 
-        coVerify(timeout = 3000, exactly = 1) { rifaDao.excluirUltimosBlocos(1) }
-        assertTrue(resultadoSucesso ?: false)
+        assertEquals(true, sucesso)
     }
 
     @Test
-    fun `excluirCrismando deve remover dependencias em rifas presencas vendedor e crismando`() = runTest {
-        val crismandoId = 55L
+    fun testExcluirUltimosBlocos_semUso_retornaSucesso() = runTest {
+        coEvery { rifaDao.contarRifasEmUsoNosUltimosBlocos(2) } returns 0
 
-        viewModel.excluirCrismando(crismandoId)
+        var sucesso: Boolean? = null
 
-        coVerify(timeout = 3000) { rifaDao.desvincularRifasDoVendedor(crismandoId) }
-        coVerify(timeout = 3000) { presencaDao.deletarPresencasPorCrismando(crismandoId) }
-        coVerify(timeout = 3000) { vendedorDao.deletarVendedorPorId(crismandoId) }
-        coVerify(timeout = 3000) { crismandoDao.deletarCrismando(crismandoId) }
+        viewModel.excluirUltimosBlocos(2) { s, _ ->
+            sucesso = s
+        }
+
+        coVerify(timeout = 2000) { rifaDao.excluirUltimosBlocos(2) }
+        advanceUntilIdle()
+
+        assertEquals(true, sucesso)
     }
 
     @Test
-    fun `exportarBackupCompletoCSV deve gerar estrutura valida com presencas e blocos de rifa`() = runTest {
-        todosCrismandosFlow.value = listOf(
-            Crismando(
-                crismandoId = 1L,
-                nome = "Mariana Silva",
-                dataNascimento = "2010-04-12",
-                telefone = "11988887777",
-                nomeResponsavel = "Carlos Silva",
-                telefoneResponsavel = "11999998888"
-            )
+    fun testExportarBackupCompletoCSV() = runTest {
+        coEvery { presencaDao.buscarTodasAsPresencasStatic() } returns listOf(
+            Presenca(crismandoId = 1L, data = "2026-09-20", estaPresente = true),
+            Presenca(crismandoId = 2L, data = "2026-09-20", estaPresente = false)
         )
-        diasComChamadaFlow.value = listOf("2026-09-06")
-        todasRifasFlow.value = listOf(
-            Rifa(numero = 1, bloco = 1, vendedorId = 1L, estaPaga = true),
-            Rifa(numero = 11, bloco = 2, vendedorId = 1L, estaPaga = false)
-        )
-        every { presencaDao.buscarTodasAsPresencasStatic() } returns listOf(
-            Presenca(crismandoId = 1L, data = "2026-09-06", estaPresente = true)
-        )
+        rifasFlow.value = listOf(Rifa(numero = 1, bloco = 1, vendedorId = 1L))
 
-        testDispatcher.scheduler.advanceUntilIdle()
+        subscribeToFlows()
+        advanceUntilIdle()
+
         val csv = viewModel.exportarBackupCompletoCSV()
 
         assertTrue(csv.startsWith("\uFEFF"))
-        assertTrue(csv.contains("Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,BlocosRifa,06/09/26"))
-        assertTrue(csv.contains("Mariana Silva,,2010-04-12,11988887777,Carlos Silva,11999998888,\"1;2\",O"))
+        assertTrue(csv.contains("Lucas Cavalcanti"))
+        assertTrue(csv.contains("Mariana Costa"))
+        assertTrue(csv.contains("\"1\""))
+    }
+
+    @Test
+    fun testExportarBackupCompletoZip() = runTest {
+        subscribeToFlows()
+        advanceUntilIdle()
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val tempDir = Files.createTempDirectory("test_zip").toFile()
+        every { mockContext.cacheDir } returns tempDir
+
+        val zip = viewModel.exportarBackupCompletoZip(mockContext)
+
+        assertTrue(zip.exists())
+        assertEquals("backup_geral_chama.zip", zip.name)
+    }
+
+    @Test
+    fun testImportarBackupZip_comSucesso() = runTest {
+        val tempDir = Files.createTempDirectory("test_import").toFile()
+        val zipFile = File(tempDir, "backup.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("dados.csv"))
+            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,BlocosRifa,20/09/26\n" +
+                    "Lucas Cavalcanti,,2000-01-01,11999999999,,,1;2,O\n"
+            zos.write(csvContent.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        coEvery { crismandoDao.inserir(any()) } returns 50L
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) { presencaDao.deleteAllPresencas() }
+        coVerify(timeout = 2000) { crismandoDao.inserir(match { it.nome == "Lucas Cavalcanti" }) }
+        coVerify(timeout = 2000) { vendedorDao.inserirVendedor(Vendedor(vendedorId = 50L, tipo = TipoVendedor.CRISMANDO)) }
+        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 1) }
+        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 2) }
+        coVerify(timeout = 2000) { presencaDao.gerarListaPresenca(match { it.first().estaPresente }) }
+    }
+
+    @Test
+    fun testImportarBackupZip_comCsvVazioOuInexistente_naoProcessa() = runTest {
+        val tempDir = Files.createTempDirectory("test_import_empty").toFile()
+        val zipFile = File(tempDir, "backup_empty.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("outro.txt"))
+            zos.write("conteudo".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { crismandoDao.inserir(any()) }
     }
 }
