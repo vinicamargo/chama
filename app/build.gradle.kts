@@ -146,7 +146,8 @@ tasks.register<JacocoReport>("jacocoCombinedReport") {
         "**/ui/theme/**",
         "**/ui/components/**",
         "**/MainActivity*.*",
-        "**/ChamaApplication*.*"
+        "**/ChamaApplication*.*",
+        "**/PdfPresencaGenerator*.*"
     )
 
     val buildDir = project.layout.buildDirectory.get().asFile
