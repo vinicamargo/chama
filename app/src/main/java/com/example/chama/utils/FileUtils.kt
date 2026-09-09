@@ -10,7 +10,7 @@ object FileUtils {
 
     fun gerarChaveCrismando(nome: String, dataNascimento: String?): String {
         val entrada = "${nome.trim().lowercase()}_${dataNascimento?.trim() ?: ""}"
-        val bytes = MessageDigest.getInstance("MD5").digest(entrada.toByteArray())
+        val bytes = MessageDigest.getInstance("SHA-256").digest(entrada.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
