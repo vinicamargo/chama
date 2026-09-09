@@ -39,7 +39,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Tests with Coverage
-        run: ./gradlew testDevDebugUnitTestCoverage --no-daemon
+        run: ./gradlew :app:createDevDebugUnitTestCoverageReport --no-daemon
 
       - name: Run Sonar Analysis
         env:

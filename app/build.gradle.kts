@@ -189,5 +189,17 @@ sonar {
     properties {
         property("sonar.projectKey", "vinicamargo_chama")
         property("sonar.organization", "vinicamargo")
+        property(
+            "sonar.coverage.exclusions",
+            listOf(
+                "**/MainActivity*.*",
+                "**/ChamaApplication*.*",
+                "**/theme/**",
+                "**/components/**",
+                "**/ui/screens/**",
+                "**/navigation/**",
+                "**/PdfPresencaGenerator*.*"
+            ).joinToString(",")
+        )
     }
 }
