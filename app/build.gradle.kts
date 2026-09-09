@@ -190,15 +190,13 @@ sonar {
         property("sonar.projectKey", "vinicamargo_chama")
         property("sonar.organization", "vinicamargo")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.sources", "src/main/java")
-        property("sonar.tests", "src/test/java")
+        property("sonar.sourceEncoding", "UTF-8")
 
         property(
             "sonar.coverage.jacoco.xmlReportPaths",
             listOf(
                 "${layout.buildDirectory.get()}/reports/coverage/test/devDebug/report.xml",
-                "${layout.buildDirectory.get()}/reports/jacoco/createDevDebugUnitTestCoverageReport/createDevDebugUnitTestCoverageReport.xml",
-                "${layout.buildDirectory.get()}/reports/jacoco/testDevDebugUnitTestCoverage/testDevDebugUnitTestCoverage.xml"
+                "${layout.buildDirectory.get()}/reports/jacoco/createDevDebugUnitTestCoverageReport/createDevDebugUnitTestCoverageReport.xml"
             ).joinToString(",")
         )
 
