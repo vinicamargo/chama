@@ -7,13 +7,13 @@ import org.junit.Test
 class FileUtilsTest {
 
     @Test
-    fun `gerarChaveCrismando deve gerar MD5 correto e consistente`() {
+    fun `gerarChaveCrismando deve gerar hash SHA-256 correta e consistente`() {
         val chave1 = FileUtils.gerarChaveCrismando("Maria Silva", "2010-05-18")
         val chave2 = FileUtils.gerarChaveCrismando("Maria Silva", "2010-05-18")
 
         // Chave gerada deve ser idêntica para as mesmas entradas
         assertEquals(chave1, chave2)
-        assertEquals(32, chave1.length) // Comprimento padrão de uma hash MD5 em hex
+        assertEquals(64, chave1.length) // Comprimento padrão de uma hash SHA-256 em hex
     }
 
     @Test
@@ -30,7 +30,7 @@ class FileUtilsTest {
         val chaveComDataVazia = FileUtils.gerarChaveCrismando("João Pedro", "")
 
         assertEquals(chaveSemData, chaveComDataVazia)
-        assertEquals(32, chaveSemData.length)
+        assertEquals(64, chaveSemData.length)
     }
 
     @Test

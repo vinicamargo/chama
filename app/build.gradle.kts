@@ -17,6 +17,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp") version "2.3.6"
     id("jacoco")
+    id("org.sonarqube")
 }
 
 android {
@@ -182,4 +183,11 @@ tasks.register<JacocoReport>("jacocoCombinedReport") {
     validExecData.add(execConnected)
 
     executionData.setFrom(files(validExecData))
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "vinicamargo_chama")
+        property("sonar.organization", "vinicamargo")
+    }
 }
