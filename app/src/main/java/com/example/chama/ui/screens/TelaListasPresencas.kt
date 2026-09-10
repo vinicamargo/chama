@@ -58,10 +58,9 @@ import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.VinculoBlocoResult
+import com.example.chama.ui.components.common.detalhescrismando.DetalhesCrismandoContainer
 import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
-import com.example.chama.ui.components.geral.DetalhesCrismando
-import com.example.chama.ui.components.geral.DetalhesCrismandoContainer
 import com.example.chama.ui.components.presencas.FiltroData
 import com.example.chama.ui.components.presencas.FiltroPresenca
 import com.example.chama.utils.DataVisualTransformation

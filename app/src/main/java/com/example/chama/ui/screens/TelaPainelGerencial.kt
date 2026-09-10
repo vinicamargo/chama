@@ -37,6 +37,7 @@ import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.VinculoBlocoResult
+import com.example.chama.ui.components.common.detalhescrismando.DetalhesCrismandoContainer
 import com.example.chama.ui.components.gerencial.AniversarianteInfo
 import com.example.chama.ui.components.gerencial.CardCrismandosPorFaltas
 import com.example.chama.ui.components.gerencial.CardDistribuicaoGenero
@@ -44,8 +45,6 @@ import com.example.chama.ui.components.gerencial.CardFaixaEtaria
 import com.example.chama.ui.components.gerencial.CardFrequenciaGeral
 import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
 import com.example.chama.ui.components.gerencial.CardProximosAniversarios
-import com.example.chama.ui.components.geral.DetalhesCrismando
-import com.example.chama.ui.components.geral.DetalhesCrismandoContainer
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
