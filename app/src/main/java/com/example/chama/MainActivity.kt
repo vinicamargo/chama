@@ -10,6 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.chama.data.AppDatabase
 import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.screens.TelaGestaoEventos
 import com.example.chama.ui.screens.TelaListasPresencas
 import com.example.chama.ui.screens.TelaPainelGerencial
 import com.example.chama.ui.screens.TelaPrincipal
@@ -35,7 +39,6 @@ import com.example.chama.utils.NotificacaoAgendador
 
 class MainActivity : ComponentActivity() {
 
-    // Estado reativo para capturar a notificação tanto com app fechado quanto em segundo plano
     private var crismandoIdDestino by mutableStateOf<Long?>(null)
     private var abrirPainelPorNotificacao by mutableStateOf(false)
 
@@ -53,8 +56,6 @@ class MainActivity : ComponentActivity() {
         )
 
         NotificacaoAgendador.agendarNotificacaoDiaria(this)
-
-        // Processa os extras caso a Activity tenha subido diretamente pelo clique
         processarIntentNotificacao(intent)
 
         setContent {
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
 
                 val permissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission()
-                ) { /* Permissão concedida ou negada */ }
+                ) { }
 
                 LaunchedEffect(Unit) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -84,7 +85,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
 
-                    // Se foi aberto pela notificação, navega imediatamente para o painel
                     LaunchedEffect(abrirPainelPorNotificacao) {
                         if (abrirPainelPorNotificacao) {
                             navController.navigate(Tela.PainelGerencial.rota)
@@ -92,20 +92,25 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    NavHost(navController = navController, startDestination = Tela.Home.rota) {
+                    NavHost(
+                        navController = navController,
+                        startDestination = Tela.Home.rota,
+                        enterTransition = { fadeIn(animationSpec = tween(200)) },
+                        exitTransition = { fadeOut(animationSpec = tween(200)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                    ) {
                         composable(Tela.Home.rota) {
                             TelaPrincipal(
                                 onIrParaLista = { navController.navigate(Tela.ListaPresenca.rota) },
-                                onIrParaRifas = { navController.navigate(Tela.Rifas.rota) },
                                 onIrParaPainelGerencial = { navController.navigate(Tela.PainelGerencial.rota) },
+                                onIrParaRifas = { navController.navigate(Tela.Rifas.rota) },
+                                onIrParaGestaoEventos = { navController.navigate(Tela.GestaoEventos.rota) },
                                 viewModel = viewModel
                             )
                         }
                         composable(Tela.ListaPresenca.rota) {
                             TelaListasPresencas(viewModel = viewModel)
-                        }
-                        composable(Tela.Rifas.rota) {
-                            TelaRifas(viewModel)
                         }
                         composable(Tela.PainelGerencial.rota) {
                             TelaPainelGerencial(
@@ -116,6 +121,12 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                 }
                             )
+                        }
+                        composable(Tela.Rifas.rota) {
+                            TelaRifas(viewModel)
+                        }
+                        composable(Tela.GestaoEventos.rota) {
+                            TelaGestaoEventos(viewModel = viewModel)
                         }
                     }
                 }
@@ -141,8 +152,9 @@ class MainActivity : ComponentActivity() {
 sealed class Tela(val rota: String) {
     object Home : Tela("home")
     object ListaPresenca : Tela("listaPresenca")
-    object Rifas : Tela("rifas")
     object PainelGerencial : Tela("painelGerencial")
+    object Rifas : Tela("rifas")
+    object GestaoEventos : Tela("gestaoEventos")
 }
 
 enum class FiltroPresenca {
