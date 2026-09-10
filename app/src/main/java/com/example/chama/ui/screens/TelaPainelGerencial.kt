@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.VinculoBlocoResult
 import com.example.chama.ui.components.gerencial.AniversarianteInfo
 import com.example.chama.ui.components.gerencial.CardCrismandosPorFaltas
 import com.example.chama.ui.components.gerencial.CardDistribuicaoGenero
@@ -44,6 +45,7 @@ import com.example.chama.ui.components.gerencial.CardFrequenciaGeral
 import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
 import com.example.chama.ui.components.gerencial.CardProximosAniversarios
 import com.example.chama.ui.components.geral.DetalhesCrismando
+import com.example.chama.ui.components.geral.DetalhesCrismandoContainer
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
@@ -285,30 +287,16 @@ fun TelaPainelGerencial(
                     }
                     val totalEncontros = datasAteHoje.size
                     val totalPresentes = presencasDoCrismando.count { it.estaPresente }
-                    val totalFaltas = (totalEncontros - totalPresentes).coerceAtLeast(0)
-                    val porcentagem = if (totalEncontros > 0) (totalPresentes.toFloat() / totalEncontros) * 100f else 100f
 
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        DetalhesCrismando(
+                        DetalhesCrismandoContainer(
                             crismando = crismando,
-                            blocosVinculados = blocos,
-                            totalFaltas = totalFaltas,
-                            totalPresentes = totalPresentes,
-                            totalEncontrosRealizados = totalEncontros,
-                            porcentagemPresenca = porcentagem,
-                            onFechar = { crismandoDetalhes = null },
-                            onExcluir = { c ->
-                                viewModel.excluirCrismando(c.crismandoId)
-                                crismandoDetalhes = null
-                            },
-                            onAtualizar = { crismandoAtualizado ->
-                                viewModel.atualizarCrismando(crismandoAtualizado)
-                                crismandoDetalhes = crismandoAtualizado
-                            }
+                            viewModel = viewModel,
+                            onFechar = { crismandoDetalhes = null }
                         )
                     }
                 }

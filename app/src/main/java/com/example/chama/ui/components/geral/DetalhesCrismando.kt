@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CameraAlt
@@ -48,16 +49,17 @@ import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,11 +81,92 @@ import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
 import com.example.chama.data.entity.Crismando
+import com.example.chama.ui.StatusBlocoRifa
 import com.example.chama.utils.DataVisualTransformation
 import com.example.chama.utils.FileUtils
+import kotlinx.coroutines.delay
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
+import androidx.compose.runtime.collectAsState
+import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.VinculoBlocoResult
+
+@Composable
+fun DetalhesCrismandoContainer(
+    crismando: Crismando,
+    viewModel: MainViewModel,
+    onFechar: () -> Unit,
+    modifier: Modifier = Modifier,
+    onExcluidoComSucesso: () -> Unit = onFechar
+) {
+    val listaRifas by viewModel.listaRifas.collectAsState()
+    val diasComChamada by viewModel.diasComChamada.collectAsState()
+    val todasPresencas by viewModel.todasPresencas.collectAsState()
+
+    val blocos = remember(listaRifas, crismando) {
+        listaRifas
+            .filter { it.vendedorId == crismando.crismandoId }
+            .map { it.bloco }
+            .distinct()
+    }
+
+    val dataDeHoje = viewModel.dataDeHoje
+    val datasAteHoje = remember(diasComChamada) {
+        diasComChamada.filter { runCatching { LocalDate.parse(it) <= dataDeHoje }.getOrDefault(false) }
+    }
+
+    val presencasDoCrismando = remember(todasPresencas, crismando, datasAteHoje) {
+        todasPresencas.filter { it.crismandoId == crismando.crismandoId && it.data in datasAteHoje }
+    }
+
+    val totalEncontros = datasAteHoje.size
+    val totalPresentes = presencasDoCrismando.count { it.estaPresente }
+    val totalFaltas = totalEncontros - totalPresentes
+    val porcentagem = if (totalEncontros > 0) (totalPresentes.toFloat() / totalEncontros) * 100f else 100f
+
+    DetalhesCrismando(
+        modifier = modifier,
+        crismando = crismando,
+        blocosVinculados = blocos,
+        totalFaltas = totalFaltas,
+        totalPresentes = totalPresentes,
+        totalEncontrosRealizados = totalEncontros,
+        porcentagemPresenca = porcentagem,
+        onFechar = onFechar,
+        onExcluir = { c ->
+            viewModel.excluirCrismando(c.crismandoId)
+            onExcluidoComSucesso()
+        },
+        onAtualizar = { crismandoAtualizado ->
+            viewModel.atualizarCrismando(crismandoAtualizado)
+        },
+        onVerificarBloco = { bloco ->
+            viewModel.checarStatusBloco(bloco, crismando.crismandoId)
+        },
+        onVincularBloco = { crismandoId, numeroBloco, onError, onSuccess ->
+            viewModel.vincularVendedorAoBloco(crismandoId, numeroBloco) { resultado ->
+                when (resultado) {
+                    is VinculoBlocoResult.Sucesso -> onSuccess()
+                    is VinculoBlocoResult.BlocoOcupado -> onError("Bloco em posse de ${resultado.nomeResponsavel}")
+                    is VinculoBlocoResult.BlocoInexistente -> {
+                        val msg = if (resultado.ultimoBloco > 0) {
+                            "Último bloco existente: ${resultado.ultimoBloco}"
+                        } else {
+                            "Não há rifas cadastradas"
+                        }
+                        onError(msg)
+                    }
+                    is VinculoBlocoResult.ErroGenerico -> onError(resultado.mensagem)
+                }
+            }
+        },
+        onDesvincularBloco = { bloco ->
+            viewModel.desvincularVendedorDoBloco(bloco)
+        }
+    )
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -98,13 +181,21 @@ fun DetalhesCrismando(
     corDestaque: Color = MaterialTheme.colorScheme.primary,
     onFechar: () -> Unit,
     onExcluir: (Crismando) -> Unit,
-    onAtualizar: (Crismando) -> Unit
+    onAtualizar: (Crismando) -> Unit,
+    onVerificarBloco: suspend (numeroBloco: Int) -> StatusBlocoRifa = { StatusBlocoRifa.Disponivel },
+    onVincularBloco: (crismandoId: Long, numeroBloco: Int, onError: (String) -> Unit, onSuccess: () -> Unit) -> Unit = { _, _, _, _ -> },
+    onDesvincularBloco: (numeroBloco: Int) -> Unit = { _ -> }
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
     var showEditarDialog by remember { mutableStateOf(false) }
     var showOpcoesFotoDialog by remember { mutableStateOf(false) }
+
+    var showVincularBlocoDialog by remember { mutableStateOf(false) }
+    var numeroBlocoInput by remember { mutableStateOf("") }
+    var erroBlocoInput by remember { mutableStateOf<String?>(null) }
+    var isProcessandoBloco by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -116,7 +207,6 @@ fun DetalhesCrismando(
                 nome = crismando.nome,
                 dataNascimento = crismando.dataNascimento
             )
-
             if (caminhoPermanente != null) {
                 onAtualizar(crismando.copy(fotoUrl = caminhoPermanente))
             }
@@ -129,7 +219,6 @@ fun DetalhesCrismando(
         if (result.isSuccessful) {
             val uriCortada: Uri? = result.uriContent ?: result.getUriFilePath(context, true)?.let { Uri.parse(it) }
             uriCortada?.let { uri ->
-                // Salva fisicamente no filesDir
                 val caminhoPermanente = FileUtils.salvarFoto(
                     context = context,
                     uriOrigem = uri,
@@ -182,9 +271,7 @@ fun DetalhesCrismando(
             .fillMaxSize()
             .padding(16.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
     ) {
         Column(
@@ -206,10 +293,7 @@ fun DetalhesCrismando(
                 )
 
                 IconButton(onClick = onFechar) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Fechar detalhes"
-                    )
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar detalhes")
                 }
             }
 
@@ -256,7 +340,7 @@ fun DetalhesCrismando(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Seção: Frequência
+            // Frequência
             Text(
                 text = "Frequência dos Encontros",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -361,7 +445,7 @@ fun DetalhesCrismando(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Dados Pessoais
+            // Dados Pessoais
             Text(
                 text = "Dados Pessoais",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -387,7 +471,7 @@ fun DetalhesCrismando(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Contato
+            // Contato
             Text(
                 text = "Contato",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -412,7 +496,7 @@ fun DetalhesCrismando(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Responsável
+            // Responsável
             Text(
                 text = "Responsável",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -446,21 +530,36 @@ fun DetalhesCrismando(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Seção: Rifas
-            Text(
-                text = "Rifas Vinculadas",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = corDestaque
-            )
+            // Rifas Vinculadas
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Rifas Vinculadas",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = corDestaque
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                TextButton(onClick = {
+                    numeroBlocoInput = ""
+                    erroBlocoInput = null
+                    isProcessandoBloco = false
+                    showVincularBlocoDialog = true
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = corDestaque)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Vincular Bloco", color = corDestaque, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -490,11 +589,26 @@ fun DetalhesCrismando(
                             blocosVinculados.sorted().forEach { bloco ->
                                 val inicio = (bloco - 1) * 10 + 1
                                 val fim = inicio + 9
-                                SuggestionChip(
+                                InputChip(
+                                    selected = false,
                                     onClick = {},
-                                    label = { Text("Bloco $bloco ($inicio-$fim)", style = MaterialTheme.typography.labelSmall) },
-                                    colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = corDestaque.copy(alpha = 0.2f)
+                                    label = {
+                                        Text(
+                                            "Bloco $bloco ($inicio-$fim)",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Desvincular bloco $bloco",
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { onDesvincularBloco(bloco) }
+                                        )
+                                    },
+                                    colors = InputChipDefaults.inputChipColors(
+                                        containerColor = corDestaque.copy(alpha = 0.15f)
                                     )
                                 )
                             }
@@ -505,7 +619,7 @@ fun DetalhesCrismando(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botão Editar + Excluir
+            // Botões Editar / Excluir
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -523,9 +637,7 @@ fun DetalhesCrismando(
                 OutlinedButton(
                     onClick = { showConfirmarExclusaoDialog = true },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -536,6 +648,139 @@ fun DetalhesCrismando(
         }
     }
 
+    // Diálogo com verificação dinâmica do bloco
+    if (showVincularBlocoDialog) {
+        var statusBloco by remember { mutableStateOf<StatusBlocoRifa>(StatusBlocoRifa.Vazio) }
+        var isVerificando by remember { mutableStateOf(false) }
+
+        LaunchedEffect(numeroBlocoInput) {
+            val bloco = numeroBlocoInput.toIntOrNull()
+            if (bloco == null || bloco <= 0) {
+                statusBloco = StatusBlocoRifa.Vazio
+                erroBlocoInput = null
+                isVerificando = false
+                return@LaunchedEffect
+            }
+
+            isVerificando = true
+            delay(300)
+            val resultado = onVerificarBloco(bloco)
+            statusBloco = resultado
+            isVerificando = false
+
+            erroBlocoInput = when (resultado) {
+                is StatusBlocoRifa.Inexistente -> {
+                    if (resultado.ultimoBloco > 0) "Último bloco existente: ${resultado.ultimoBloco}" else "Não há rifas cadastradas"
+                }
+                is StatusBlocoRifa.Ocupado -> {
+                    if (resultado.isMesmoCrismando) "Já está com este crismando" else "Em posse de ${resultado.nomeResponsavel}"
+                }
+                else -> null
+            }
+        }
+
+        val isBlocoValido = statusBloco is StatusBlocoRifa.Disponivel
+
+        AlertDialog(
+            onDismissRequest = {
+                if (!isProcessandoBloco) showVincularBlocoDialog = false
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.ConfirmationNumber,
+                    contentDescription = null,
+                    tint = corDestaque,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text("Vincular Bloco de Rifas", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Informe o número do bloco a ser entregue para ${crismando.nome}.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    OutlinedTextField(
+                        value = numeroBlocoInput,
+                        onValueChange = { input ->
+                            numeroBlocoInput = input.filter { it.isDigit() }
+                        },
+                        label = { Text("Número do Bloco") },
+                        placeholder = { Text("Ex: 1, 2, 15...") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = erroBlocoInput != null,
+                        supportingText = {
+                            when {
+                                isVerificando -> {
+                                    Text("Verificando disponibilidade...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                erroBlocoInput != null -> {
+                                    Text(erroBlocoInput!!, color = MaterialTheme.colorScheme.error)
+                                }
+                                isBlocoValido -> {
+                                    Text("✓ Bloco disponível", color = Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    val numeroBloco = numeroBlocoInput.toIntOrNull()
+                    if (numeroBloco != null && numeroBloco > 0) {
+                        val inicio = (numeroBloco - 1) * 10 + 1
+                        val fim = inicio + 9
+                        Text(
+                            text = "Bilhetes: $inicio ao $fim",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = isBlocoValido && !isProcessandoBloco && !isVerificando,
+                    onClick = {
+                        val bloco = numeroBlocoInput.toIntOrNull() ?: return@TextButton
+                        isProcessandoBloco = true
+                        onVincularBloco(
+                            crismando.crismandoId,
+                            bloco,
+                            { mensagemErro ->
+                                isProcessandoBloco = false
+                                erroBlocoInput = mensagemErro
+                            },
+                            {
+                                isProcessandoBloco = false
+                                showVincularBlocoDialog = false
+                            }
+                        )
+                    }
+                ) {
+                    Text(
+                        text = if (isProcessandoBloco) "Salvando..." else "Vincular",
+                        fontWeight = FontWeight.Bold,
+                        color = if (isBlocoValido) corDestaque else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isProcessandoBloco,
+                    onClick = { showVincularBlocoDialog = false }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Modal Foto
     if (showOpcoesFotoDialog) {
         Dialog(onDismissRequest = { showOpcoesFotoDialog = false }) {
             Card(
@@ -568,18 +813,9 @@ fun DetalhesCrismando(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = null,
-                                tint = corDestaque,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = corDestaque, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Tirar Foto",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Text("Tirar Foto", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         }
                     }
 
@@ -596,18 +832,9 @@ fun DetalhesCrismando(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Image,
-                                contentDescription = null,
-                                tint = corDestaque,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(imageVector = Icons.Default.Image, contentDescription = null, tint = corDestaque, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Escolher da Galeria",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Text("Escolher da Galeria", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         }
                     }
 
@@ -633,17 +860,9 @@ fun DetalhesCrismando(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                Icon(imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = "Remover Foto",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Text("Remover Foto", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -661,6 +880,7 @@ fun DetalhesCrismando(
         }
     }
 
+    // Modal Editar
     if (showEditarDialog) {
         AlertDialog(
             onDismissRequest = { showEditarDialog = false },
@@ -772,6 +992,7 @@ fun DetalhesCrismando(
         )
     }
 
+    // Modal Excluir
     if (showConfirmarExclusaoDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmarExclusaoDialog = false },
@@ -784,10 +1005,7 @@ fun DetalhesCrismando(
                 )
             },
             title = {
-                Text(
-                    text = "Excluir Crismando?",
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "Excluir Crismando?", fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -811,9 +1029,7 @@ fun DetalhesCrismando(
                         showConfirmarExclusaoDialog = false
                         onExcluir(crismando)
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text("Excluir Definitivamente", fontWeight = FontWeight.Bold)
                 }
@@ -845,26 +1061,11 @@ private fun ItemInfoCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icone,
-                contentDescription = null,
-                tint = corIcone,
-                modifier = Modifier.size(24.dp)
-            )
-
+            Icon(imageVector = icone, contentDescription = null, tint = corIcone, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(14.dp))
-
             Column {
-                Text(
-                    text = titulo,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = valor,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = titulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = valor, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -896,26 +1097,11 @@ private fun ItemContatoCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.Phone,
-                contentDescription = null,
-                tint = corIcone,
-                modifier = Modifier.size(24.dp)
-            )
-
+            Icon(imageVector = Icons.Default.Phone, contentDescription = null, tint = corIcone, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(14.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = titulo,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = telefoneFormatado,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = titulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = telefoneFormatado, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }
 
             if (digitos.isNotBlank()) {
@@ -924,24 +1110,14 @@ private fun ItemContatoCard(
                         onClick = { onWhatsApp(digitos) },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "WhatsApp",
-                            tint = Color(0xFF25D366),
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(imageVector = Icons.Default.Send, contentDescription = "WhatsApp", tint = Color(0xFF25D366), modifier = Modifier.size(20.dp))
                     }
 
                     IconButton(
                         onClick = { onLigar(digitos) },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "Ligar",
-                            tint = corIcone,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(imageVector = Icons.Default.Call, contentDescription = "Ligar", tint = corIcone, modifier = Modifier.size(20.dp))
                     }
                 }
             }

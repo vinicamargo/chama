@@ -57,9 +57,11 @@ import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
 import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.VinculoBlocoResult
 import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
 import com.example.chama.ui.components.geral.DetalhesCrismando
+import com.example.chama.ui.components.geral.DetalhesCrismandoContainer
 import com.example.chama.ui.components.presencas.FiltroData
 import com.example.chama.ui.components.presencas.FiltroPresenca
 import com.example.chama.utils.DataVisualTransformation
@@ -279,22 +281,10 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        DetalhesCrismando(
+                        DetalhesCrismandoContainer(
                             crismando = crismando,
-                            blocosVinculados = blocos,
-                            totalFaltas = totalFaltas,
-                            totalPresentes = totalPresentes,
-                            totalEncontrosRealizados = totalEncontros,
-                            porcentagemPresenca = porcentagem,
-                            onFechar = { crismandoDetalhes = null },
-                            onExcluir = { c ->
-                                viewModel.excluirCrismando(c.crismandoId)
-                                crismandoDetalhes = null
-                            },
-                            onAtualizar = { crismandoAtualizado ->
-                                viewModel.atualizarCrismando(crismandoAtualizado)
-                                crismandoDetalhes = crismandoAtualizado
-                            }
+                            viewModel = viewModel,
+                            onFechar = { crismandoDetalhes = null }
                         )
                     }
                 }

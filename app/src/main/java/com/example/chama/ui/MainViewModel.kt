@@ -45,6 +45,20 @@ import java.time.temporal.TemporalAdjusters
 import java.util.zip.ZipInputStream
 import kotlin.random.Random
 
+sealed interface StatusBlocoRifa {
+    data object Vazio : StatusBlocoRifa
+    data object Disponivel : StatusBlocoRifa
+    data class Ocupado(val nomeResponsavel: String, val isMesmoCrismando: Boolean) : StatusBlocoRifa
+    data class Inexistente(val ultimoBloco: Int) : StatusBlocoRifa
+}
+
+sealed interface VinculoBlocoResult {
+    data object Sucesso : VinculoBlocoResult
+    data class BlocoOcupado(val nomeResponsavel: String) : VinculoBlocoResult
+    data class BlocoInexistente(val ultimoBloco: Int) : VinculoBlocoResult
+    data class ErroGenerico(val mensagem: String) : VinculoBlocoResult
+}
+
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
     private val presencaDao: PresencaDao,
@@ -271,9 +285,49 @@ class MainViewModel(
             null else rifa
     }
 
-    fun vincularVendedorAoBloco(vendedorId: Long, bloco: Int) {
+    suspend fun checarStatusBloco(bloco: Int, crismandoIdAtual: Long): StatusBlocoRifa = withContext(ioDispatcher) {
+        val ultimoBloco = rifaDao.getMaiorNumeroBloco()
+        if (bloco > ultimoBloco || ultimoBloco == 0) {
+            return@withContext StatusBlocoRifa.Inexistente(ultimoBloco)
+        }
+
+        val dono = rifaDao.buscarDonoDoBloco(bloco)
+        return@withContext when {
+            dono == null -> StatusBlocoRifa.Disponivel
+            dono.vendedorId == crismandoIdAtual -> StatusBlocoRifa.Ocupado(dono.nomeVendedor, isMesmoCrismando = true)
+            else -> StatusBlocoRifa.Ocupado(dono.nomeVendedor, isMesmoCrismando = false)
+        }
+    }
+
+    fun vincularVendedorAoBloco(
+        vendedorId: Long,
+        bloco: Int,
+        onResultado: (VinculoBlocoResult) -> Unit = {}
+    ) {
         viewModelScope.launch(ioDispatcher) {
-            rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
+            try {
+                val ultimoBloco = rifaDao.getMaiorNumeroBloco()
+                if (bloco > ultimoBloco || ultimoBloco == 0) {
+                    withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.BlocoInexistente(ultimoBloco)) }
+                    return@launch
+                }
+
+                val dono = rifaDao.buscarDonoDoBloco(bloco)
+                when {
+                    dono == null -> {
+                        rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
+                        withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.Sucesso) }
+                    }
+                    dono.vendedorId == vendedorId -> {
+                        withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.BlocoOcupado("este mesmo crismando")) }
+                    }
+                    else -> {
+                        withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.BlocoOcupado(dono.nomeVendedor)) }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.ErroGenerico(e.localizedMessage ?: "Erro ao vincular")) }
+            }
         }
     }
 
