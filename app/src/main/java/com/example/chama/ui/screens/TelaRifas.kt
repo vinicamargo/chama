@@ -108,7 +108,9 @@ fun TelaRifas(
         listaRifas.groupBy { it.bloco }.toList().sortedBy { it.first }
     }
 
-    val context = LocalContext.current
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
 
     Scaffold(
         floatingActionButton = {
@@ -357,6 +359,7 @@ fun TelaRifas(
                 showAcoesSheet = false
                 conteudoSheet = TipoConteudoSheet.ACOES
                 viewModel.alterarFiltroNome("")
+                viewModel.selecionarRifa(null)
             }) {
                 when (conteudoSheet) {
                     TipoConteudoSheet.ACOES -> {
