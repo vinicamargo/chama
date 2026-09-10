@@ -1,9 +1,11 @@
 package com.example.chama.ui
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chama.BuildConfig
@@ -22,6 +24,7 @@ import com.example.chama.data.model.PessoaVendedora
 import com.example.chama.utils.FileUtils
 import com.example.chama.utils.GeneroUtils
 import com.example.chama.utils.NormalizacaoUtils
+import com.example.chama.utils.PdfFichasGenerator
 import com.example.chama.utils.ZipBackupUtils
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -696,5 +699,29 @@ class MainViewModel(
         }
         colunas.add(sb.toString().trim().removeSurrounding("\""))
         return colunas
+    }
+
+    fun exportarFichasPdf(context: Context) {
+        viewModelScope.launch(ioDispatcher) {
+            val crismandos = listaCrismandosOriginal.value.sortedBy { it.nome }
+
+            // Gera o arquivo .pdf físico no cache
+            val pdfFile = PdfFichasGenerator.gerarPdfFichas(context, crismandos)
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                pdfFile
+            )
+
+            withContext(Dispatchers.Main) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/pdf" // ⬅️ Compartilha diretamente como PDF real
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Compartilhar Fichas em PDF"))
+            }
+        }
     }
 }

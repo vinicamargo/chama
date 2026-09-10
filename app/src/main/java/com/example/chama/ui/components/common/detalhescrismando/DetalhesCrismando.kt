@@ -69,6 +69,8 @@ import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogFo
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogOpcoesFoto
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogVincularBloco
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoDadosContato
+import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoDadosPessoais
+import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoFiliacaoResidencia
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoFrequencia
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoRifasVinculadas
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoSacramentos
@@ -241,9 +243,13 @@ fun DetalhesCrismando(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    var expandirFrequencia by remember { mutableStateOf(false) }
-    var expandirSacramentos by remember { mutableStateOf(false) }
+    // Estados de expansão das seções
+    var expandirDadosPessoais by remember { mutableStateOf(false) }
     var expandirContatos by remember { mutableStateOf(false) }
+    var expandirFiliacaoResidencia by remember { mutableStateOf(false) }
+    var expandirSacramentos by remember { mutableStateOf(false) }
+    var expandirPadrinhos by remember { mutableStateOf(false) }
+    var expandirFrequencia by remember { mutableStateOf(false) }
     var expandirRifas by remember { mutableStateOf(false) }
 
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
@@ -314,9 +320,7 @@ fun DetalhesCrismando(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
     ) {
-        // Box que engloba o conteúdo rolável e a barra de botões flutuante sobreposta
         Box(modifier = Modifier.fillMaxSize()) {
-            // Conteúdo Rolável (com padding inferior para os botões não taparem os últimos itens)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -342,7 +346,7 @@ fun DetalhesCrismando(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Avatar & Nome
+                // Avatar & Nome Principal
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -372,7 +376,7 @@ fun DetalhesCrismando(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
                         text = crismando.nome,
@@ -384,6 +388,24 @@ fun DetalhesCrismando(
                 Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
+                SecaoDadosPessoais(
+                    crismando = crismando,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirDadosPessoais,
+                    onToggleExpandir = { expandirDadosPessoais = !expandirDadosPessoais }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                SecaoFiliacaoResidencia(
+                    crismando = crismando,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirFiliacaoResidencia,
+                    onToggleExpandir = { expandirFiliacaoResidencia = !expandirFiliacaoResidencia }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
                 SecaoDadosContato(
                     crismando = crismando,
                     corDestaque = corDestaque,
@@ -393,6 +415,17 @@ fun DetalhesCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
+                // 4. Situação Sacramental (Batismo, Paróquia, Diocese, Certidão)
+                SecaoSacramentos(
+                    crismando = crismando,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirSacramentos,
+                    onToggleExpandir = { expandirSacramentos = !expandirSacramentos }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                // 6. Frequência
                 SecaoFrequencia(
                     totalPresentes = totalPresentes,
                     totalFaltas = totalFaltas,
@@ -405,15 +438,7 @@ fun DetalhesCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-                SecaoSacramentos(
-                    crismando = crismando,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirSacramentos,
-                    onToggleExpandir = { expandirSacramentos = !expandirSacramentos }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
+                // 7. Rifas
                 SecaoRifasVinculadas(
                     blocosVinculados = blocosVinculados,
                     corDestaque = corDestaque,
@@ -424,7 +449,7 @@ fun DetalhesCrismando(
                 )
             }
 
-            // Barra Flutuante Sobreposta (Fixa na base do Card)
+            // Barra Flutuante com Botões de Ação
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

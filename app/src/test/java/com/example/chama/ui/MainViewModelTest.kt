@@ -18,6 +18,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -544,6 +545,9 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val tempDir = Files.createTempDirectory("test_zip").toFile()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
 
         val zip = viewModel.exportarBackupCompletoZip(mockContext)
 
@@ -558,15 +562,30 @@ class MainViewModelTest {
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.putNextEntry(ZipEntry("dados.csv"))
-            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa,20/09/26\n" +
-                    "Lucas Cavalcanti,,2000-01-01,11999999999,,,,,,,1;2,O\n"
-            zos.write(csvContent.toByteArray(Charsets.UTF_8))
+            val cabecalho = listOf(
+                "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+                "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+                "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+                "RelacionamentoResponsavel", "CelularResponsavel",
+                "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+                "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa", "20/09/26"
+            ).joinToString(",") + "\n"
+
+            val linha = listOf(
+                "Lucas Cavalcanti", "", "2000-01-01", "", "", "", "", "", "", "", "", "", "", "", "",
+                "S", "S", "", "", "N", "S", "1;2", "O"
+            ).joinToString(",") + "\n"
+
+            zos.write((cabecalho + linha).toByteArray(Charsets.UTF_8))
             zos.closeEntry()
         }
 
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         coEvery { crismandoDao.inserir(any()) } returns 50L
@@ -577,8 +596,8 @@ class MainViewModelTest {
         coVerify(timeout = 2000) { presencaDao.deleteAllPresencas() }
         coVerify(timeout = 2000) { crismandoDao.inserir(match { it.nome == "Lucas Cavalcanti" }) }
         coVerify(timeout = 2000) { vendedorDao.inserirVendedor(Vendedor(vendedorId = 50L, tipo = TipoVendedor.CRISMANDO)) }
-        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 1) }
-        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 2) }
+        verify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 1) }
+        verify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 2) }
         coVerify(timeout = 2000) { presencaDao.gerarListaPresenca(match { it.first().estaPresente }) }
     }
 
@@ -596,6 +615,9 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         viewModel.importarBackupZip(mockContext, mockUri)
@@ -687,9 +709,20 @@ class MainViewModelTest {
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.putNextEntry(ZipEntry("dados.csv"))
-            val cabecalho = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel," +
-                    "IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa,20/09/26\n"
-            val linha1 = "Carlos Teste,,2002-05-10,11988887777,Mae Teste,11977776666,N,N,Nenhuma,N,1,P\n"
+            val cabecalho = listOf(
+                "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+                "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+                "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+                "RelacionamentoResponsavel", "CelularResponsavel",
+                "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+                "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa", "20/09/26"
+            ).joinToString(",") + "\n"
+
+            val linha1 = listOf(
+                "Carlos Teste", "", "2002-05-10", "", "", "", "", "", "", "", "", "", "", "", "",
+                "N", "S", "Nenhuma", "", "N", "N", "1", "P"
+            ).joinToString(",") + "\n"
+
             zos.write((cabecalho + linha1).toByteArray(Charsets.UTF_8))
             zos.closeEntry()
         }
@@ -697,6 +730,9 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         coEvery { crismandoDao.inserir(any()) } returns 70L
@@ -733,6 +769,9 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         viewModel.importarBackupZip(mockContext, mockUri)
@@ -757,6 +796,9 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         viewModel.importarBackupZip(mockContext, mockUri)
@@ -821,15 +863,30 @@ class MainViewModelTest {
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.putNextEntry(ZipEntry("dados.csv"))
-            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa\n" +
-                    "Ana Silva,,data_invalida,11988887777,, ,1,1,,0,bloco_invalido\n"
-            zos.write(csvContent.toByteArray(Charsets.UTF_8))
+            val cabecalho = listOf(
+                "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+                "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+                "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+                "RelacionamentoResponsavel", "CelularResponsavel",
+                "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+                "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa"
+            ).joinToString(",") + "\n"
+
+            val linha = listOf(
+                "Ana Silva", "", "data_invalida", "", "", "", "", "", "", "", "", "", "", "", "",
+                "1", "1", "", "", "1", "0", "bloco_invalido"
+            ).joinToString(",") + "\n"
+
+            zos.write((cabecalho + linha).toByteArray(Charsets.UTF_8))
             zos.closeEntry()
         }
 
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         coEvery { crismandoDao.inserir(any()) } returns 80L
@@ -869,9 +926,9 @@ class MainViewModelTest {
             nome = "Ana Completa",
             fotoUrl = "http://foto.com/ana.jpg",
             dataNascimento = "2001-02-03",
-            telefone = "11988887777",
-            nomeResponsavel = "Mae da Ana",
-            telefoneResponsavel = "11977776666",
+            celular = "11988887777",
+            relacionamentoResponsavel = "Mae da Ana",
+            celularResponsavel = "11977776666",
             isBatizado = false,
             certidaoBatismoEntregue = true,
             paroquiaBatismo = "Paróquia São José",
@@ -895,7 +952,7 @@ class MainViewModelTest {
         assertTrue(csv.contains("11988887777"))
         assertTrue(csv.contains("Mae da Ana"))
         assertTrue(csv.contains("11977776666"))
-        assertTrue(csv.contains(",N,S,Paróquia São José,N,"))
+        assertTrue(csv.contains(",N,S,Paróquia São José,,S,N,"))
         assertTrue(csv.contains("\"5\""))
         assertTrue(csv.contains("F"))
     }

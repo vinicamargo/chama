@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ContactPhone
 import androidx.compose.material.icons.filled.FamilyRestroom
@@ -33,8 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.chama.data.entity.Crismando
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun SecaoDadosContato(
@@ -46,30 +43,37 @@ fun SecaoDadosContato(
 ) {
     val context = LocalContext.current
 
+    // Resolve o nome direto do responsável com o parentesco para o cabeçalho
+    val nomeResponsavel = when (crismando.relacionamentoResponsavel?.trim()?.lowercase()) {
+        "pai" -> crismando.nomePai?.ifBlank { null }
+        "mãe", "mae" -> crismando.nomeMae?.ifBlank { null }
+        else -> null
+    } ?: crismando.nomePai?.ifBlank { null }
+    ?: crismando.nomeMae?.ifBlank { null }
+
+    val tituloResponsavel = buildString {
+        if (!nomeResponsavel.isNullOrBlank()) {
+            append(nomeResponsavel)
+            crismando.relacionamentoResponsavel?.let { append(" ($it)") }
+        } else if (!crismando.relacionamentoResponsavel.isNullOrBlank()) {
+            append("Responsável (${crismando.relacionamentoResponsavel})")
+        } else {
+            append("Responsável")
+        }
+    }
+
     SecaoColapsavelCard(
-        titulo = "Dados & Contato",
+        titulo = "Contato",
         icone = Icons.Default.ContactPhone,
         corDestaque = corDestaque,
         isExpandido = isExpandido,
         onToggleExpandir = onToggleExpandir,
         modifier = modifier
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val dataFormatada = runCatching {
-                crismando.dataNascimento?.let {
-                    LocalDate.parse(it).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                }
-            }?.getOrNull() ?: crismando.dataNascimento ?: "Não informada"
-            val idadeTexto = crismando.idade?.let { " ($it anos)" } ?: ""
-
-            ItemInfoCard(
-                icone = Icons.Default.Cake,
-                titulo = "Data de Nascimento",
-                valor = "$dataFormatada$idadeTexto",
-                corIcone = corDestaque
-            )
-
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 1. Contato do Crismando
             ItemContatoCard(
+                icone = Icons.Default.Phone,
                 titulo = "Celular do Crismando",
                 telefone = crismando.celular,
                 corIcone = corDestaque,
@@ -77,15 +81,10 @@ fun SecaoDadosContato(
                 onWhatsApp = { tel -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/55$tel"))) }
             )
 
-            ItemInfoCard(
-                icone = Icons.Default.FamilyRestroom,
-                titulo = "Responsável",
-                valor = crismando.relacionamentoResponsavel ?: "Não informado",
-                corIcone = corDestaque
-            )
-
+            // 2. Contato do Responsável (Título direto com Nome + Parentesco, sem subtítulo abaixo)
             ItemContatoCard(
-                titulo = "Celular do Responsável",
+                icone = Icons.Default.FamilyRestroom,
+                titulo = tituloResponsavel,
                 telefone = crismando.celularResponsavel,
                 corIcone = corDestaque,
                 onLigar = { tel -> context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))) },
@@ -96,35 +95,8 @@ fun SecaoDadosContato(
 }
 
 @Composable
-private fun ItemInfoCard(
-    icone: ImageVector,
-    titulo: String,
-    valor: String,
-    corIcone: Color = MaterialTheme.colorScheme.primary
-) {
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(imageVector = icone, contentDescription = null, tint = corIcone, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(14.dp))
-            Column {
-                Text(text = titulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = valor, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            }
-        }
-    }
-}
-
-@Composable
 private fun ItemContatoCard(
+    icone: ImageVector,
     titulo: String,
     telefone: String?,
     corIcone: Color = MaterialTheme.colorScheme.primary,
@@ -135,41 +107,70 @@ private fun ItemContatoCard(
     val telefoneFormatado = when (digitos.length) {
         11 -> "(${digitos.substring(0, 2)}) ${digitos.substring(2, 7)}-${digitos.substring(7)}"
         10 -> "(${digitos.substring(0, 2)}) ${digitos.substring(2, 6)}-${digitos.substring(6)}"
-        else -> telefone ?: "Não informado"
+        else -> telefone?.ifBlank { "Não informado" } ?: "Não informado"
     }
 
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(imageVector = Icons.Default.Phone, contentDescription = null, tint = corIcone, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(14.dp))
+            Icon(
+                imageVector = icone,
+                contentDescription = null,
+                tint = corIcone,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = titulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = telefoneFormatado, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(
+                    text = titulo,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = telefoneFormatado,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
             if (digitos.isNotBlank()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     IconButton(
                         onClick = { onWhatsApp(digitos) },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Send, contentDescription = "WhatsApp", tint = Color(0xFF25D366), modifier = Modifier.size(20.dp))
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "WhatsApp",
+                            tint = Color(0xFF25D366),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
 
                     IconButton(
                         onClick = { onLigar(digitos) },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Call, contentDescription = "Ligar", tint = corIcone, modifier = Modifier.size(20.dp))
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Ligar",
+                            tint = corIcone,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }

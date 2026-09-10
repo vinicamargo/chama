@@ -27,26 +27,27 @@ class CrismandoTest {
         val naoBatizado = Crismando(nome = "João", isBatizado = false)
         Assert.assertFalse(naoBatizado.batismoPendenteDocumentacao)
 
-        val semCertidao = Crismando(
+        val semParoquia = Crismando(
             nome = "Maria",
             isBatizado = true,
-            certidaoBatismoEntregue = false,
-            paroquiaBatismo = "São Judas"
-        )
-        Assert.assertTrue(semCertidao.batismoPendenteDocumentacao)
-
-        val semParoquia = Crismando(
-            nome = "Marcos",
-            isBatizado = true,
-            certidaoBatismoEntregue = true,
+            batizadoNaDiocese = true,
             paroquiaBatismo = ""
         )
         Assert.assertTrue(semParoquia.batismoPendenteDocumentacao)
 
+        val foraDioceseSemCertidao = Crismando(
+            nome = "Marcos",
+            isBatizado = true,
+            batizadoNaDiocese = false,
+            certidaoBatismoEntregue = false,
+            certidaoBatismoUrl = null
+        )
+        Assert.assertTrue(foraDioceseSemCertidao.batismoPendenteDocumentacao)
+
         val regular = Crismando(
             nome = "Bia",
             isBatizado = true,
-            certidaoBatismoEntregue = true,
+            batizadoNaDiocese = true,
             paroquiaBatismo = "Paróquia Central"
         )
         Assert.assertFalse(regular.batismoPendenteDocumentacao)
