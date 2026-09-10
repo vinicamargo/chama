@@ -81,36 +81,10 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     val crismandoSelecionado by viewModel.crismandoSelecionado
     val filtroPresenca by viewModel.filtroPresencaSelecionado
     val dataFiltrada by viewModel.diaSelecionado.collectAsState()
-    val listaRifas by viewModel.listaRifas.collectAsState()
-    val diasComChamada by viewModel.diasComChamada.collectAsState()
-    val todasPresencas by viewModel.todasPresencas.collectAsState()
 
     var fabExpandido by remember { mutableStateOf(false) }
 
     var showNovoCrismandoDialog by remember { mutableStateOf(false) }
-    var nomeNovoCrismando by remember { mutableStateOf("") }
-    var dataNascNovoCrismando by remember { mutableStateOf("") }
-    var telefoneNovoCrismando by remember { mutableStateOf("") }
-    var responsavelNovoCrismando by remember { mutableStateOf("") }
-    var telResponsavelNovoCrismando by remember { mutableStateOf("") }
-
-    // Novos Campos Sacramentais
-    var isBatizadoNovo by remember { mutableStateOf(true) }
-    var certidaoEntregueNovo by remember { mutableStateOf(false) }
-    var paroquiaBatismoNovo by remember { mutableStateOf("") }
-    var temPrimeiraComunhaoNovo by remember { mutableStateOf(true) }
-
-    fun limparCamposCadastro() {
-        nomeNovoCrismando = ""
-        dataNascNovoCrismando = ""
-        telefoneNovoCrismando = ""
-        responsavelNovoCrismando = ""
-        telResponsavelNovoCrismando = ""
-        isBatizadoNovo = true
-        certidaoEntregueNovo = false
-        paroquiaBatismoNovo = ""
-        temPrimeiraComunhaoNovo = true
-    }
 
     val isCrismandoSelecionadoPresente = remember(crismandoSelecionado, presencas) {
         val estaPresente = presencas.find {

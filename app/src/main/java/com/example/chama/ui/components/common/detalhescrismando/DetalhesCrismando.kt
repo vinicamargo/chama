@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -90,7 +91,6 @@ fun DetalhesCrismandoContainer(
     listaCrismandos: List<Crismando> = emptyList(),
     onExcluidoComSucesso: () -> Unit = onFechar
 ) {
-    // Se recebeu a lista completa da tela de presenças, ativa o carrossel circular infinito
     if (listaCrismandos.isNotEmpty()) {
         val total = listaCrismandos.size
         val indexInicial = remember(crismando.crismandoId, listaCrismandos) {
@@ -128,7 +128,6 @@ fun DetalhesCrismandoContainer(
             }
         }
     } else {
-        // Fallback para exibição única (se chamado sem a lista)
         DetalhesCrismandoItemCarrossel(
             crismando = crismando,
             viewModel = viewModel,
@@ -242,13 +241,11 @@ fun DetalhesCrismando(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // Estados de expansão/compressão de cada seção
     var expandirFrequencia by remember { mutableStateOf(false) }
     var expandirSacramentos by remember { mutableStateOf(false) }
-    var expandirContatos by remember { mutableStateOf(true) }
+    var expandirContatos by remember { mutableStateOf(false) }
     var expandirRifas by remember { mutableStateOf(false) }
 
-    // Diálogos
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
     var showEditarDialog by remember { mutableStateOf(false) }
     var showOpcoesFotoDialog by remember { mutableStateOf(false) }
@@ -317,138 +314,162 @@ fun DetalhesCrismando(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-                .verticalScroll(scrollState)
-        ) {
-            // Cabeçalho
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Informações do Crismando",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-
-                IconButton(onClick = onFechar) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar detalhes")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Avatar & Nome
+        // Box que engloba o conteúdo rolável e a barra de botões flutuante sobreposta
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Conteúdo Rolável (com padding inferior para os botões não taparem os últimos itens)
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 80.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(135.dp)
-                        .clip(CircleShape)
-                        .background(corDestaque.copy(alpha = 0.2f))
-                        .clickable { showOpcoesFotoDialog = true },
-                    contentAlignment = Alignment.Center
+                // Cabeçalho
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!crismando.fotoUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = crismando.fotoUrl,
-                            contentDescription = "Foto de ${crismando.nome}",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(68.dp)
-                        )
+                    Text(
+                        text = "Informações do Crismando",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    IconButton(onClick = onFechar) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar detalhes")
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = crismando.nome,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                // Avatar & Nome
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(135.dp)
+                            .clip(CircleShape)
+                            .background(corDestaque.copy(alpha = 0.2f))
+                            .clickable { showOpcoesFotoDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!crismando.fotoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = crismando.fotoUrl,
+                                contentDescription = "Foto de ${crismando.nome}",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(68.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = crismando.nome,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                SecaoDadosContato(
+                    crismando = crismando,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirContatos,
+                    onToggleExpandir = { expandirContatos = !expandirContatos }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                SecaoFrequencia(
+                    totalPresentes = totalPresentes,
+                    totalFaltas = totalFaltas,
+                    totalEncontrosRealizados = totalEncontrosRealizados,
+                    porcentagemPresenca = porcentagemPresenca,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirFrequencia,
+                    onToggleExpandir = { expandirFrequencia = !expandirFrequencia }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                SecaoSacramentos(
+                    crismando = crismando,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirSacramentos,
+                    onToggleExpandir = { expandirSacramentos = !expandirSacramentos }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                SecaoRifasVinculadas(
+                    blocosVinculados = blocosVinculados,
+                    corDestaque = corDestaque,
+                    isExpandido = expandirRifas,
+                    onToggleExpandir = { expandirRifas = !expandirRifas },
+                    onAbrirVincular = { showVincularBlocoDialog = true },
+                    onClicarBloco = { blocoItem -> blocoSelecionadoParaAcoes = blocoItem }
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-            SecaoDadosContato(
-                crismando = crismando,
-                corDestaque = corDestaque,
-                isExpandido = expandirContatos,
-                onToggleExpandir = { expandirContatos = !expandirContatos }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-            SecaoFrequencia(
-                totalPresentes = totalPresentes,
-                totalFaltas = totalFaltas,
-                totalEncontrosRealizados = totalEncontrosRealizados,
-                porcentagemPresenca = porcentagemPresenca,
-                corDestaque = corDestaque,
-                isExpandido = expandirFrequencia,
-                onToggleExpandir = { expandirFrequencia = !expandirFrequencia }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-            SecaoSacramentos(
-                crismando = crismando,
-                corDestaque = corDestaque,
-                isExpandido = expandirSacramentos,
-                onToggleExpandir = { expandirSacramentos = !expandirSacramentos }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-            SecaoRifasVinculadas(
-                blocosVinculados = blocosVinculados,
-                corDestaque = corDestaque,
-                isExpandido = expandirRifas,
-                onToggleExpandir = { expandirRifas = !expandirRifas },
-                onAbrirVincular = { showVincularBlocoDialog = true },
-                onClicarBloco = { blocoItem -> blocoSelecionadoParaAcoes = blocoItem }
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Botões Editar / Excluir
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Barra Flutuante Sobreposta (Fixa na base do Card)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    )
+                    .padding(start = 20.dp, end = 20.dp, bottom = 16.dp, top = 20.dp)
             ) {
-                OutlinedButton(
-                    onClick = { showEditarDialog = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Editar")
-                }
+                    OutlinedButton(
+                        onClick = { showEditarDialog = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Editar")
+                    }
 
-                OutlinedButton(
-                    onClick = { showConfirmarExclusaoDialog = true },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Excluir")
+                    OutlinedButton(
+                        onClick = { showConfirmarExclusaoDialog = true },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Excluir")
+                    }
                 }
             }
         }
