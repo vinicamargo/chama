@@ -603,4 +603,118 @@ class MainViewModelTest {
 
         coVerify(exactly = 0) { crismandoDao.inserir(any()) }
     }
+
+    @Test
+    fun testChecarStatusBloco_deveCobrirTodosOsStatus() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 10
+        coEvery { rifaDao.buscarDonoDoBloco(1) } returns null
+        coEvery {
+            rifaDao.buscarDonoDoBloco(2)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 1L, nomeVendedor = "Lucas")
+        coEvery {
+            rifaDao.buscarDonoDoBloco(3)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 2L, nomeVendedor = "Mariana")
+
+        val statusInexistente = viewModel.checarStatusBloco(15, crismandoIdAtual = 1L)
+        assertTrue(statusInexistente is StatusBlocoRifa.Inexistente)
+        assertEquals(10, (statusInexistente as StatusBlocoRifa.Inexistente).ultimoBloco)
+
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 0
+        val statusZero = viewModel.checarStatusBloco(1, crismandoIdAtual = 1L)
+        assertTrue(statusZero is StatusBlocoRifa.Inexistente)
+
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 10
+
+        val statusDisponivel = viewModel.checarStatusBloco(1, crismandoIdAtual = 1L)
+        assertTrue(statusDisponivel is StatusBlocoRifa.Disponivel)
+
+        val statusMesmo = viewModel.checarStatusBloco(2, crismandoIdAtual = 1L)
+        assertTrue(statusMesmo is StatusBlocoRifa.Ocupado)
+        assertTrue((statusMesmo as StatusBlocoRifa.Ocupado).isMesmoCrismando)
+
+        val statusOutro = viewModel.checarStatusBloco(3, crismandoIdAtual = 1L)
+        assertTrue(statusOutro is StatusBlocoRifa.Ocupado)
+        org.junit.Assert.assertFalse((statusOutro as StatusBlocoRifa.Ocupado).isMesmoCrismando)
+        assertEquals("Mariana", (statusOutro as StatusBlocoRifa.Ocupado).nomeResponsavel)
+    }
+
+    @Test
+    fun testVincularVendedorAoBloco_comCallback_cobreTodosOsResultados() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 5
+        coEvery { rifaDao.buscarDonoDoBloco(1) } returns null
+        coEvery {
+            rifaDao.buscarDonoDoBloco(2)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 10L, nomeVendedor = "Dono 10")
+        coEvery {
+            rifaDao.buscarDonoDoBloco(3)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 99L, nomeVendedor = "Outro Dono")
+
+        var resSucesso: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 1) { resSucesso = it }
+        advanceUntilIdle()
+        assertTrue(resSucesso is VinculoBlocoResult.Sucesso)
+        coVerify { rifaDao.vincularVendedorAoBloco(10L, 1) }
+
+        var resInexistente: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 99) { resInexistente = it }
+        advanceUntilIdle()
+        assertTrue(resInexistente is VinculoBlocoResult.BlocoInexistente)
+
+        var resMesmo: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 2) { resMesmo = it }
+        advanceUntilIdle()
+        assertTrue(resMesmo is VinculoBlocoResult.BlocoOcupado)
+        assertEquals("este mesmo crismando", (resMesmo as VinculoBlocoResult.BlocoOcupado).nomeResponsavel)
+
+        var resOutro: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 3) { resOutro = it }
+        advanceUntilIdle()
+        assertTrue(resOutro is VinculoBlocoResult.BlocoOcupado)
+        assertEquals("Outro Dono", (resOutro as VinculoBlocoResult.BlocoOcupado).nomeResponsavel)
+
+        coEvery { rifaDao.buscarDonoDoBloco(4) } throws RuntimeException("Falha de IO simulada")
+        var resErro: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 4) { resErro = it }
+        advanceUntilIdle()
+        assertTrue(resErro is VinculoBlocoResult.ErroGenerico)
+        assertEquals("Falha de IO simulada", (resErro as VinculoBlocoResult.ErroGenerico).mensagem)
+    }
+
+    @Test
+    fun testImportarBackupZip_comSacramentosCompletosEPresencaAlternativa() = runTest {
+        val tempDir = Files.createTempDirectory("test_import_sacramentos").toFile()
+        val zipFile = File(tempDir, "backup_sacramentos.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("dados.csv"))
+            val cabecalho = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel," +
+                    "IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa,20/09/26\n"
+            val linha1 = "Carlos Teste,,2002-05-10,11988887777,Mae Teste,11977776666,N,N,Nenhuma,N,1,P\n"
+            zos.write((cabecalho + linha1).toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        coEvery { crismandoDao.inserir(any()) } returns 70L
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) {
+            crismandoDao.inserir(match {
+                it.nome == "Carlos Teste" &&
+                        !it.isBatizado &&
+                        !it.certidaoBatismoEntregue &&
+                        it.paroquiaBatismo == "Nenhuma" &&
+                        !it.temPrimeiraComunhao
+            })
+        }
+        coVerify(timeout = 2000) {
+            presencaDao.gerarListaPresenca(match { it.first().estaPresente })
+        }
+    }
 }

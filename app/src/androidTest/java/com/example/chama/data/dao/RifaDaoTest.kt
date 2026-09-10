@@ -133,4 +133,75 @@ class RifaDaoTest {
         assertTrue(restantes.none { it.bloco == 3 })
         assertEquals(20, rifaDao.getMaiorNumeroRifa())
     }
+
+    @Test
+    fun getRifaPorNumero_deveRetornarRifaCorrespondente() {
+        val rifas = listOf(
+            Rifa(numero = 10, bloco = 1, estaPaga = false, vendedorId = null),
+            Rifa(numero = 11, bloco = 2, estaPaga = true, vendedorId = null)
+        )
+        rifaDao.inserirRifas(rifas)
+
+        val rifaRecuperada = rifaDao.getRifaPorNumero(11)
+
+        assertEquals(11, rifaRecuperada.numero)
+        assertEquals(2, rifaRecuperada.bloco)
+        assertTrue(rifaRecuperada.estaPaga)
+    }
+
+    @Test
+    fun getMaiorNumeroBloco_deveRetornarZeroQuandoVazioEMaiorNumeroQuandoPopulada() {
+        assertEquals(0, rifaDao.getMaiorNumeroBloco())
+
+        val rifas = listOf(
+            Rifa(numero = 1, bloco = 1, estaPaga = false, vendedorId = null),
+            Rifa(numero = 25, bloco = 3, estaPaga = false, vendedorId = null),
+            Rifa(numero = 15, bloco = 2, estaPaga = false, vendedorId = null)
+        )
+        rifaDao.inserirRifas(rifas)
+
+        assertEquals(3, rifaDao.getMaiorNumeroBloco())
+    }
+
+    @Test
+    fun desvincularRifasDoVendedor_deveLimparApenasAsRifasDoVendedorAlvo() = runBlocking {
+        vendedorDao.inserirVendedor(Vendedor(vendedorId = 1L, tipo = TipoVendedor.EXTERNO, nomeExterno = "Vendedor 1"))
+        vendedorDao.inserirVendedor(Vendedor(vendedorId = 2L, tipo = TipoVendedor.EXTERNO, nomeExterno = "Vendedor 2"))
+
+        val rifas = listOf(
+            Rifa(numero = 1, bloco = 1, estaPaga = false, vendedorId = 1L),
+            Rifa(numero = 2, bloco = 1, estaPaga = false, vendedorId = 1L),
+            Rifa(numero = 11, bloco = 2, estaPaga = false, vendedorId = 2L)
+        )
+        rifaDao.inserirRifas(rifas)
+
+        rifaDao.desvincularRifasDoVendedor(1L)
+
+        val lista = rifaDao.getRifas().first()
+        assertTrue(lista.filter { it.bloco == 1 }.all { it.vendedorId == null })
+        assertEquals(2L, lista.first { it.bloco == 2 }.vendedorId)
+    }
+
+    @Test
+    fun buscarDonoDoBloco_deveRetornarBlocoDonoInfoQuandoVinculadoACrismando() = runBlocking {
+        val crismandoDao = db.crismandoDao()
+        val crismandoId = crismandoDao.inserir(
+            com.example.chama.data.entity.Crismando(nome = "Lucas Teste")
+        )
+
+        vendedorDao.inserirVendedor(
+            Vendedor(vendedorId = crismandoId, tipo = TipoVendedor.CRISMANDO)
+        )
+
+        val rifa = Rifa(numero = 41, bloco = 5, estaPaga = false, vendedorId = crismandoId)
+        rifaDao.inserirRifas(listOf(rifa))
+
+        val dono = rifaDao.buscarDonoDoBloco(5)
+        org.junit.Assert.assertNotNull(dono)
+        assertEquals(crismandoId, dono?.vendedorId)
+        assertEquals("Lucas Teste", dono?.nomeVendedor)
+
+        val semDono = rifaDao.buscarDonoDoBloco(99)
+        org.junit.Assert.assertNull(semDono)
+    }
 }
