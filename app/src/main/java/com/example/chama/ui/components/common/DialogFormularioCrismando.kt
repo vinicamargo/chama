@@ -65,9 +65,9 @@ fun DialogFormularioCrismando(
         mutableStateOf(formatada)
     }
 
-    var telefone by remember { mutableStateOf(crismandoParaEditar?.telefone ?: "") }
-    var nomeResponsavel by remember { mutableStateOf(crismandoParaEditar?.nomeResponsavel ?: "") }
-    var telefoneResponsavel by remember { mutableStateOf(crismandoParaEditar?.telefoneResponsavel ?: "") }
+    var telefone by remember { mutableStateOf(crismandoParaEditar?.celular ?: "") }
+    var nomeResponsavel by remember { mutableStateOf(crismandoParaEditar?.relacionamentoResponsavel ?: "") }
+    var telefoneResponsavel by remember { mutableStateOf(crismandoParaEditar?.celularResponsavel ?: "") }
 
     var isBatizado by remember { mutableStateOf(crismandoParaEditar?.isBatizado ?: true) }
     var certidaoEntregue by remember { mutableStateOf(crismandoParaEditar?.certidaoBatismoEntregue ?: false) }
@@ -92,9 +92,9 @@ fun DialogFormularioCrismando(
             nome = nome.trim(),
             fotoUrl = crismandoParaEditar?.fotoUrl,
             dataNascimento = parseDataParaIso(dataNascimentoDigitos),
-            telefone = telefone.trim().ifBlank { null },
-            nomeResponsavel = nomeResponsavel.trim().ifBlank { null },
-            telefoneResponsavel = telefoneResponsavel.trim().ifBlank { null },
+            celular = telefone.trim().ifBlank { null },
+            relacionamentoResponsavel = nomeResponsavel.trim().ifBlank { null },
+            celularResponsavel = telefoneResponsavel.trim().ifBlank { null },
             isBatizado = isBatizado,
             certidaoBatismoEntregue = if (isBatizado) certidaoEntregue else false,
             paroquiaBatismo = if (isBatizado) paroquiaBatismo.trim().ifBlank { null } else null,
@@ -353,9 +353,9 @@ fun DialogFormularioCrismando(
 
             diff("Nome", crismandoParaEditar.nome, crismandoNovo.nome)
             diff("Nascimento", crismandoParaEditar.dataNascimento, crismandoNovo.dataNascimento)
-            diff("Telefone", crismandoParaEditar.telefone, crismandoNovo.telefone)
-            diff("Responsável", crismandoParaEditar.nomeResponsavel, crismandoNovo.nomeResponsavel)
-            diff("Tel. Responsável", crismandoParaEditar.telefoneResponsavel, crismandoNovo.telefoneResponsavel)
+            diff("Telefone", crismandoParaEditar.celular, crismandoNovo.celular)
+            diff("Responsável", crismandoParaEditar.relacionamentoResponsavel, crismandoNovo.relacionamentoResponsavel)
+            diff("Tel. Responsável", crismandoParaEditar.celularResponsavel, crismandoNovo.celularResponsavel)
             diff("Batizado", boolTxt(crismandoParaEditar.isBatizado), boolTxt(crismandoNovo.isBatizado))
             diff("Certidão Entregue", boolTxt(crismandoParaEditar.certidaoBatismoEntregue), boolTxt(crismandoNovo.certidaoBatismoEntregue))
             diff("Paróquia Batismo", crismandoParaEditar.paroquiaBatismo, crismandoNovo.paroquiaBatismo)

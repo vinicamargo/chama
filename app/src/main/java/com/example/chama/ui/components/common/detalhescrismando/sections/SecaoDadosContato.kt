@@ -70,8 +70,8 @@ fun SecaoDadosContato(
             )
 
             ItemContatoCard(
-                titulo = "Telefone do Crismando",
-                telefone = crismando.telefone,
+                titulo = "Celular do Crismando",
+                telefone = crismando.celular,
                 corIcone = corDestaque,
                 onLigar = { tel -> context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))) },
                 onWhatsApp = { tel -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/55$tel"))) }
@@ -79,14 +79,14 @@ fun SecaoDadosContato(
 
             ItemInfoCard(
                 icone = Icons.Default.FamilyRestroom,
-                titulo = "Nome do Responsável",
-                valor = crismando.nomeResponsavel ?: "Não informado",
+                titulo = "Responsável",
+                valor = crismando.relacionamentoResponsavel ?: "Não informado",
                 corIcone = corDestaque
             )
 
             ItemContatoCard(
-                titulo = "Telefone do Responsável",
-                telefone = crismando.telefoneResponsavel,
+                titulo = "Celular do Responsável",
+                telefone = crismando.celularResponsavel,
                 corIcone = corDestaque,
                 onLigar = { tel -> context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))) },
                 onWhatsApp = { tel -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/55$tel"))) }
