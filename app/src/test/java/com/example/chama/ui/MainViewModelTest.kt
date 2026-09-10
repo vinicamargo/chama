@@ -385,6 +385,9 @@ class MainViewModelTest {
 
     @Test
     fun testVincularEDesvincularVendedorDoBloco() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 10
+        coEvery { rifaDao.buscarDonoDoBloco(3) } returns null
+
         viewModel.vincularVendedorAoBloco(10L, 3)
         advanceUntilIdle()
         coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(10L, 3) }
@@ -555,8 +558,8 @@ class MainViewModelTest {
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.putNextEntry(ZipEntry("dados.csv"))
-            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,BlocosRifa,20/09/26\n" +
-                    "Lucas Cavalcanti,,2000-01-01,11999999999,,,1;2,O\n"
+            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa,20/09/26\n" +
+                    "Lucas Cavalcanti,,2000-01-01,11999999999,,,,,,,1;2,O\n"
             zos.write(csvContent.toByteArray(Charsets.UTF_8))
             zos.closeEntry()
         }
