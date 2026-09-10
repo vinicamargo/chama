@@ -281,6 +281,7 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                     ) {
                         DetalhesCrismandoContainer(
                             crismando = crismando,
+                            listaCrismandos = listaCrismandosFiltrada,
                             viewModel = viewModel,
                             onFechar = { crismandoDetalhes = null }
                         )

@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,13 +80,72 @@ data class BlocoItemUI(
     val estaPago: Boolean
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DetalhesCrismandoContainer(
     crismando: Crismando,
     viewModel: MainViewModel,
     onFechar: () -> Unit,
     modifier: Modifier = Modifier,
+    listaCrismandos: List<Crismando> = emptyList(),
     onExcluidoComSucesso: () -> Unit = onFechar
+) {
+    // Se recebeu a lista completa da tela de presenças, ativa o carrossel circular infinito
+    if (listaCrismandos.isNotEmpty()) {
+        val total = listaCrismandos.size
+        val indexInicial = remember(crismando.crismandoId, listaCrismandos) {
+            listaCrismandos.indexOfFirst { it.crismandoId == crismando.crismandoId }.coerceAtLeast(0)
+        }
+
+        val contagemVirtual = total * 1000
+        val paginaInicialVirtual = (contagemVirtual / 2) - ((contagemVirtual / 2) % total) + indexInicial
+
+        val pagerState = rememberPagerState(
+            initialPage = paginaInicialVirtual,
+            pageCount = { contagemVirtual }
+        )
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = modifier.fillMaxSize(),
+            beyondViewportPageCount = 1
+        ) { paginaVirtual ->
+            val indexReal = paginaVirtual % total
+            val crismandoAtual = listaCrismandos[indexReal]
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.9f)),
+                contentAlignment = Alignment.Center
+            ) {
+                DetalhesCrismandoItemCarrossel(
+                    crismando = crismandoAtual,
+                    viewModel = viewModel,
+                    onFechar = onFechar,
+                    onExcluidoComSucesso = onExcluidoComSucesso
+                )
+            }
+        }
+    } else {
+        // Fallback para exibição única (se chamado sem a lista)
+        DetalhesCrismandoItemCarrossel(
+            crismando = crismando,
+            viewModel = viewModel,
+            onFechar = onFechar,
+            onExcluidoComSucesso = onExcluidoComSucesso,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
+private fun DetalhesCrismandoItemCarrossel(
+    crismando: Crismando,
+    viewModel: MainViewModel,
+    onFechar: () -> Unit,
+    onExcluidoComSucesso: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val listaRifas by viewModel.listaRifas.collectAsState()
     val diasComChamada by viewModel.diasComChamada.collectAsState()
