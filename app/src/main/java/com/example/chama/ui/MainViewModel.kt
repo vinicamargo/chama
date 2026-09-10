@@ -432,17 +432,18 @@ class MainViewModel(
                 val cabecalho = parseCsvLine(linhas[0])
                 val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
-                // Extrai datas dos domingos a partir da coluna 7 (após BlocosRifa)
-                val datasLista = if (cabecalho.size > 7) {
-                    cabecalho.drop(7).mapNotNull { dataStr ->
+                // Datas agora começam no índice 11 (após BlocosRifa)
+                val datasLista = if (cabecalho.size > 11) {
+                    cabecalho.drop(11).mapNotNull { dataStr ->
                         runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
                     }
                 } else emptyList()
 
-                // Identifica o maior bloco de rifas para instanciar as rifas no banco
                 val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
+
+                // BlocosRifa agora está no índice 10
                 val maiorBloco = linhasDados.maxOfOrNull { colunas ->
-                    val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                    val blocosTexto = colunas.getOrNull(10)?.trim() ?: ""
                     if (blocosTexto.isNotBlank()) {
                         blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }.maxOrNull() ?: 0
                     } else 0
@@ -463,7 +464,7 @@ class MainViewModel(
                     rifaDao.inserirRifas(listaRifasIniciais)
                 }
 
-                // 2. Insere os crismandos persistindo o gênero inferido pelo nome
+                // 2. Insere os crismandos
                 linhasDados.forEach { colunas ->
                     val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
                     if (nome.isBlank()) return@forEach
@@ -474,14 +475,31 @@ class MainViewModel(
                     val nomeResp = NormalizacaoUtils.normalizarNome(colunas.getOrNull(4)).ifBlank { null }
                     val telResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(5))
 
+                    // Sacramentos (Índices 6 a 9)
+                    val isBatizadoStr = colunas.getOrNull(6)?.trim() ?: "S"
+                    val isBatizado = isBatizadoStr.equals("S", ignoreCase = true) || isBatizadoStr == "1"
+
+                    val certidaoEntregueStr = colunas.getOrNull(7)?.trim() ?: "N"
+                    val certidaoEntregue = certidaoEntregueStr.equals("S", ignoreCase = true) || certidaoEntregueStr == "1"
+
+                    val paroquiaBatismo = colunas.getOrNull(8)?.trim()?.ifBlank { null }
+
+                    val temPrimeiraComunhaoStr = colunas.getOrNull(9)?.trim() ?: "S"
+                    val temPrimeiraComunhao = temPrimeiraComunhaoStr.equals("S", ignoreCase = true) || temPrimeiraComunhaoStr == "1"
+
                     val crismando = Crismando(
+                        crismandoId = 0L,
                         nome = nome,
                         fotoUrl = fotoUrl,
                         dataNascimento = dataNasc,
                         telefone = tel,
                         nomeResponsavel = nomeResp,
                         telefoneResponsavel = telResp,
-                        genero = GeneroUtils.inferirGenero(nome)
+                        genero = GeneroUtils.inferirGenero(nome),
+                        isBatizado = isBatizado,
+                        certidaoBatismoEntregue = certidaoEntregue,
+                        paroquiaBatismo = paroquiaBatismo,
+                        temPrimeiraComunhao = temPrimeiraComunhao
                     )
 
                     val novoId = crismandoDao.inserir(crismando)
@@ -490,8 +508,8 @@ class MainViewModel(
                         Vendedor(vendedorId = novoId, tipo = TipoVendedor.CRISMANDO)
                     )
 
-                    // Rifas
-                    val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                    // 3. Rifas vinculadas (Índice 10)
+                    val blocosTexto = colunas.getOrNull(10)?.trim() ?: ""
                     if (blocosTexto.isNotBlank()) {
                         val blocosDoCrismando = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
                         blocosDoCrismando.forEach { numBloco ->
@@ -499,8 +517,8 @@ class MainViewModel(
                         }
                     }
 
-                    // Presenças
-                    val presencasColunas = if (colunas.size > 7) colunas.drop(7) else emptyList()
+                    // 4. Presenças (Índice 11 em diante)
+                    val presencasColunas = if (colunas.size > 11) colunas.drop(11) else emptyList()
                     val listaPresencas = datasLista.mapIndexed { i, dataIso ->
                         val valor = presencasColunas.getOrNull(i)?.trim() ?: ""
                         val presente = valor.equals("O", ignoreCase = true) || valor.equals("P", ignoreCase = true)
@@ -564,7 +582,7 @@ class MainViewModel(
             }
 
         val csv = StringBuilder()
-        csv.append("\uFEFF")
+        csv.append("\uFEFF") // BOM para Excel abrir acentos sem problemas
 
         val colunasCabecalho = listOf(
             "Nome",
@@ -573,6 +591,10 @@ class MainViewModel(
             "Telefone",
             "NomeResponsavel",
             "TelefoneResponsavel",
+            "IsBatizado",
+            "CertidaoBatismoEntregue",
+            "ParoquiaBatismo",
+            "TemPrimeiraComunhao",
             "BlocosRifa"
         ) + datasFormatadas
         csv.append(colunasCabecalho.joinToString(",")).append("\n")
@@ -580,7 +602,7 @@ class MainViewModel(
         crismandos.forEach { crismando ->
             val blocosDoCrismando = mapaBlocosPorCrismando[crismando.crismandoId] ?: emptyList()
             val textoBlocos = if (blocosDoCrismando.isNotEmpty()) {
-                "\"${blocosDoCrismando.joinToString(";")}\"" // Ex: "1;2;3"
+                "\"${blocosDoCrismando.joinToString(";")}\""
             } else {
                 ""
             }
@@ -592,6 +614,10 @@ class MainViewModel(
                 crismando.telefone ?: "",
                 crismando.nomeResponsavel ?: "",
                 crismando.telefoneResponsavel ?: "",
+                if (crismando.isBatizado) "S" else "N",
+                if (crismando.certidaoBatismoEntregue) "S" else "N",
+                crismando.paroquiaBatismo ?: "",
+                if (crismando.temPrimeiraComunhao) "S" else "N",
                 textoBlocos
             )
 

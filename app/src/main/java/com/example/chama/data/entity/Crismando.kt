@@ -20,7 +20,12 @@ data class Crismando (
     val telefone: String? = null,
     val nomeResponsavel: String? = null,
     val telefoneResponsavel: String? = null,
-    val genero: Genero? = null
+    val genero: Genero? = null,
+
+    val isBatizado: Boolean = false,
+    val certidaoBatismoEntregue: Boolean = false,
+    val paroquiaBatismo: String? = null,
+    val temPrimeiraComunhao: Boolean = false
 ) {
     val idade: Int?
         get() {
@@ -33,4 +38,7 @@ data class Crismando (
                 null
             }
         }
+
+    val batismoPendenteDocumentacao: Boolean
+        get() = isBatizado && (!certidaoBatismoEntregue || paroquiaBatismo.isNullOrBlank())
 }
