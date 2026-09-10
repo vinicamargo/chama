@@ -92,7 +92,7 @@ fun SecaoSacramentos(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Batismo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
-                            text = if (crismando.isBatizado) "Batizado" else "Não Batizado (Pendente Batismo)",
+                            text = if (crismando.isBatizado) "Batizado" else "(Receberá durante a catequese)",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = if (crismando.isBatizado) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
@@ -141,7 +141,7 @@ fun SecaoSacramentos(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Paróquia onde foi Batizado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
-                                text = crismando.paroquiaBatismo?.takeIf { it.isNotBlank() } ?: "Não informada / A pesquisar",
+                                text = crismando.paroquiaBatismo?.takeIf { it.isNotBlank() } ?: "Não informada",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = if (crismando.paroquiaBatismo.isNullOrBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
@@ -167,7 +167,7 @@ fun SecaoSacramentos(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Primeira Eucaristia", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
-                            text = if (crismando.temPrimeiraComunhao) "Já realizou a 1ª Comunhão" else "Pendente (Fará na Crisma)",
+                            text = if (crismando.temPrimeiraComunhao) "Já recebeu a 1ª Comunhão" else "(Receberá durante a catequese)",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = if (crismando.temPrimeiraComunhao) MaterialTheme.colorScheme.onSurface else Color(0xFFED6C02)
