@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
-import com.example.chama.ui.VinculoBlocoResult
 import com.example.chama.ui.components.common.detalhescrismando.DetalhesCrismandoContainer
 import com.example.chama.ui.components.gerencial.AniversarianteInfo
 import com.example.chama.ui.components.gerencial.CardCrismandosPorFaltas
