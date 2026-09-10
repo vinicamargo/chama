@@ -63,8 +63,8 @@ import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.StatusBlocoRifa
 import com.example.chama.ui.VinculoBlocoResult
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogAcoesBloco
-import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogEditarCrismando
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogExclusaoCrismando
+import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogFormularioCrismando
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogOpcoesFoto
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogVincularBloco
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoDadosContato
@@ -505,8 +505,8 @@ fun DetalhesCrismando(
     }
 
     if (showEditarDialog) {
-        DialogEditarCrismando(
-            crismando = crismando,
+        DialogFormularioCrismando(
+            crismandoParaEditar = crismando,
             corDestaque = corDestaque,
             onSalvar = onAtualizar,
             onDismiss = { showEditarDialog = false }

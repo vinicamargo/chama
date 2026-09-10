@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -34,39 +35,78 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.chama.data.entity.Crismando
+import com.example.chama.utils.DataVisualTransformation
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
-fun DialogEditarCrismando(
-    crismando: Crismando,
+fun DialogFormularioCrismando(
+    crismandoParaEditar: Crismando? = null, // null = Novo | preenchido = Edição
     corDestaque: Color = MaterialTheme.colorScheme.primary,
     onSalvar: (Crismando) -> Unit,
     onDismiss: () -> Unit
 ) {
-    // Dados Pessoais e Contato
-    var nome by remember { mutableStateOf(crismando.nome) }
-    var dataNascimento by remember { mutableStateOf(crismando.dataNascimento ?: "") }
-    var telefone by remember { mutableStateOf(crismando.telefone ?: "") }
-    var nomeResponsavel by remember { mutableStateOf(crismando.nomeResponsavel ?: "") }
-    var telefoneResponsavel by remember { mutableStateOf(crismando.telefoneResponsavel ?: "") }
+    val isEdicao = crismandoParaEditar != null
 
-    // Sacramentos
-    var isBatizado by remember { mutableStateOf(crismando.isBatizado) }
-    var certidaoEntregue by remember { mutableStateOf(crismando.certidaoBatismoEntregue) }
-    var paroquiaBatismo by remember { mutableStateOf(crismando.paroquiaBatismo ?: "") }
-    var temPrimeiraComunhao by remember { mutableStateOf(crismando.temPrimeiraComunhao) }
+    // 1. Estados dos Campos
+    var nome by remember { mutableStateOf(crismandoParaEditar?.nome ?: "") }
 
-    // Estado do Diálogo de Confirmação
+    // Converte ISO (AAAA-MM-DD) para DDMMYYYY se for edição, permitindo a máscara correta
+    var dataNascimentoDigitos by remember {
+        val formatada = crismandoParaEditar?.dataNascimento?.let {
+            runCatching {
+                val data = LocalDate.parse(it)
+                data.format(DateTimeFormatter.ofPattern("ddMMyyyy"))
+            }.getOrNull()
+        } ?: ""
+        mutableStateOf(formatada)
+    }
+
+    var telefone by remember { mutableStateOf(crismandoParaEditar?.telefone ?: "") }
+    var nomeResponsavel by remember { mutableStateOf(crismandoParaEditar?.nomeResponsavel ?: "") }
+    var telefoneResponsavel by remember { mutableStateOf(crismandoParaEditar?.telefoneResponsavel ?: "") }
+
+    var isBatizado by remember { mutableStateOf(crismandoParaEditar?.isBatizado ?: true) }
+    var certidaoEntregue by remember { mutableStateOf(crismandoParaEditar?.certidaoBatismoEntregue ?: false) }
+    var paroquiaBatismo by remember { mutableStateOf(crismandoParaEditar?.paroquiaBatismo ?: "") }
+    var temPrimeiraComunhao by remember { mutableStateOf(crismandoParaEditar?.temPrimeiraComunhao ?: true) }
+
     var showConfirmacaoDialog by remember { mutableStateOf(false) }
 
-    val scrollState = rememberScrollState()
+    // Helper para converter os dígitos em ISO ou null
+    fun parseDataParaIso(digitos: String): String? {
+        return runCatching {
+            if (digitos.length == 8) {
+                val dtf = DateTimeFormatter.ofPattern("ddMMyyyy")
+                LocalDate.parse(digitos, dtf).toString()
+            } else null
+        }.getOrNull()
+    }
+
+    fun buildCrismando(): Crismando {
+        return Crismando(
+            crismandoId = crismandoParaEditar?.crismandoId ?: 0L,
+            nome = nome.trim(),
+            fotoUrl = crismandoParaEditar?.fotoUrl,
+            dataNascimento = parseDataParaIso(dataNascimentoDigitos),
+            telefone = telefone.trim().ifBlank { null },
+            nomeResponsavel = nomeResponsavel.trim().ifBlank { null },
+            telefoneResponsavel = telefoneResponsavel.trim().ifBlank { null },
+            isBatizado = isBatizado,
+            certidaoBatismoEntregue = if (isBatizado) certidaoEntregue else false,
+            paroquiaBatismo = if (isBatizado) paroquiaBatismo.trim().ifBlank { null } else null,
+            temPrimeiraComunhao = if (isBatizado) temPrimeiraComunhao else false
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Editar Crismando",
+                text = if (isEdicao) "Editar Crismando" else "Novo Crismando",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -75,7 +115,7 @@ fun DialogEditarCrismando(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(scrollState),
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
@@ -88,28 +128,46 @@ fun DialogEditarCrismando(
                 OutlinedTextField(
                     value = nome,
                     onValueChange = { nome = it },
-                    label = { Text("Nome completo") },
+                    label = { Text("Nome completo *") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
-                    value = dataNascimento,
-                    onValueChange = { dataNascimento = it },
-                    label = { Text("Data de Nascimento (AAAA-MM-DD)") },
+                    value = dataNascimentoDigitos,
+                    onValueChange = { input ->
+                        dataNascimentoDigitos = input.filter { it.isDigit() }.take(8)
+                    },
+                    label = { Text("Data de Nascimento") },
+                    placeholder = { Text("DD/MM/AAAA") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    visualTransformation = DataVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
                     value = telefone,
-                    onValueChange = { telefone = it },
-                    label = { Text("Telefone") },
+                    onValueChange = { input ->
+                        telefone = input.filter { it.isDigit() }.take(11)
+                    },
+                    label = { Text("Telefone (apenas números)") },
+                    placeholder = { Text("Ex: 11987654321") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    text = "Responsável",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = corDestaque,
+                    fontWeight = FontWeight.Bold
                 )
 
                 OutlinedTextField(
@@ -123,15 +181,18 @@ fun DialogEditarCrismando(
 
                 OutlinedTextField(
                     value = telefoneResponsavel,
-                    onValueChange = { telefoneResponsavel = it },
+                    onValueChange = { input ->
+                        telefoneResponsavel = input.filter { it.isDigit() }.take(11)
+                    },
                     label = { Text("Telefone do Responsável") },
+                    placeholder = { Text("Ex: 11987654321") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                 Text(
                     text = "Vida Sacramental",
@@ -140,14 +201,14 @@ fun DialogEditarCrismando(
                     fontWeight = FontWeight.Bold
                 )
 
-                // 1. Switch Batismo
+                // 1. Batismo
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             isBatizado = !isBatizado
                             if (!isBatizado) {
-                                temPrimeiraComunhao = false // Regra canônica: sem batismo, sem comunhão
+                                temPrimeiraComunhao = false
                                 certidaoEntregue = false
                                 paroquiaBatismo = ""
                             }
@@ -177,7 +238,7 @@ fun DialogEditarCrismando(
                     )
                 }
 
-                // 2. Detalhes do Batismo (Certidão e Paróquia) - Só exibe se for batizado
+                // Campos dependentes do Batismo
                 AnimatedVisibility(
                     visible = isBatizado,
                     enter = expandVertically() + fadeIn(),
@@ -189,7 +250,6 @@ fun DialogEditarCrismando(
                             .padding(top = 2.dp, bottom = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Checkbox Certidão Entregue
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -207,7 +267,6 @@ fun DialogEditarCrismando(
                             )
                         }
 
-                        // Input Paróquia onde foi batizado
                         OutlinedTextField(
                             value = paroquiaBatismo,
                             onValueChange = { paroquiaBatismo = it },
@@ -220,7 +279,7 @@ fun DialogEditarCrismando(
                     }
                 }
 
-                // 3. Switch Primeira Eucaristia
+                // 2. Primeira Comunhão
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -258,7 +317,12 @@ fun DialogEditarCrismando(
             TextButton(
                 onClick = {
                     if (nome.isNotBlank()) {
-                        showConfirmacaoDialog = true
+                        if (isEdicao) {
+                            showConfirmacaoDialog = true
+                        } else {
+                            onSalvar(buildCrismando())
+                            onDismiss()
+                        }
                     }
                 }
             ) {
@@ -272,32 +336,12 @@ fun DialogEditarCrismando(
         }
     )
 
-    // Diálogo de Confirmação com Lista de Alterações
-    if (showConfirmacaoDialog) {
-        val nomeTratado = nome.trim()
-        val dataNascTratada = dataNascimento.trim().ifBlank { null }
-        val telTratado = telefone.trim().ifBlank { null }
-        val respTratado = nomeResponsavel.trim().ifBlank { null }
-        val telRespTratado = telefoneResponsavel.trim().ifBlank { null }
-        val certidaoTratada = if (isBatizado) certidaoEntregue else false
-        val paroquiaTratada = if (isBatizado) paroquiaBatismo.trim().ifBlank { null } else null
-        val comunhaoTratada = if (isBatizado) temPrimeiraComunhao else false
+    // Confirmação de alterações (somente para edição)
+    if (showConfirmacaoDialog && crismandoParaEditar != null) {
+        val crismandoNovo = buildCrismando()
 
-        // Mapeia todas as diferenças detectadas
-        val alteracoes = remember(
-            crismando,
-            nomeTratado,
-            dataNascTratada,
-            telTratado,
-            respTratado,
-            telRespTratado,
-            isBatizado,
-            certidaoTratada,
-            paroquiaTratada,
-            comunhaoTratada
-        ) {
+        val alteracoes = remember(crismandoParaEditar, crismandoNovo) {
             val lista = mutableListOf<String>()
-
             fun diff(campo: String, antigo: Any?, novo: Any?) {
                 if (antigo != novo) {
                     val txtAntigo = antigo?.toString()?.ifBlank { "Vazio" } ?: "Vazio"
@@ -305,30 +349,24 @@ fun DialogEditarCrismando(
                     lista.add("• $campo: $txtAntigo ➔ $txtNovo")
                 }
             }
-
             fun boolTxt(b: Boolean) = if (b) "Sim" else "Não"
 
-            diff("Nome", crismando.nome, nomeTratado)
-            diff("Nascimento", crismando.dataNascimento, dataNascTratada)
-            diff("Telefone", crismando.telefone, telTratado)
-            diff("Responsável", crismando.nomeResponsavel, respTratado)
-            diff("Tel. Responsável", crismando.telefoneResponsavel, telRespTratado)
-            diff("Batizado", boolTxt(crismando.isBatizado), boolTxt(isBatizado))
-            diff("Certidão Entregue", boolTxt(crismando.certidaoBatismoEntregue), boolTxt(certidaoTratada))
-            diff("Paróquia Batismo", crismando.paroquiaBatismo, paroquiaTratada)
-            diff("1ª Comunhão", boolTxt(crismando.temPrimeiraComunhao), boolTxt(comunhaoTratada))
-
+            diff("Nome", crismandoParaEditar.nome, crismandoNovo.nome)
+            diff("Nascimento", crismandoParaEditar.dataNascimento, crismandoNovo.dataNascimento)
+            diff("Telefone", crismandoParaEditar.telefone, crismandoNovo.telefone)
+            diff("Responsável", crismandoParaEditar.nomeResponsavel, crismandoNovo.nomeResponsavel)
+            diff("Tel. Responsável", crismandoParaEditar.telefoneResponsavel, crismandoNovo.telefoneResponsavel)
+            diff("Batizado", boolTxt(crismandoParaEditar.isBatizado), boolTxt(crismandoNovo.isBatizado))
+            diff("Certidão Entregue", boolTxt(crismandoParaEditar.certidaoBatismoEntregue), boolTxt(crismandoNovo.certidaoBatismoEntregue))
+            diff("Paróquia Batismo", crismandoParaEditar.paroquiaBatismo, crismandoNovo.paroquiaBatismo)
+            diff("1ª Comunhão", boolTxt(crismandoParaEditar.temPrimeiraComunhao), boolTxt(crismandoNovo.temPrimeiraComunhao))
             lista
         }
 
         AlertDialog(
             onDismissRequest = { showConfirmacaoDialog = false },
             title = {
-                Text(
-                    text = "Confirmar Alterações",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "Confirmar Alterações", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -341,11 +379,7 @@ fun DialogEditarCrismando(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         alteracoes.forEach { item ->
-                            Text(
-                                text = item,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Text(text = item, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -353,27 +387,12 @@ fun DialogEditarCrismando(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val crismandoAtualizado = crismando.copy(
-                            nome = nomeTratado,
-                            dataNascimento = dataNascTratada,
-                            telefone = telTratado,
-                            nomeResponsavel = respTratado,
-                            telefoneResponsavel = telRespTratado,
-                            isBatizado = isBatizado,
-                            certidaoBatismoEntregue = certidaoTratada,
-                            paroquiaBatismo = paroquiaTratada,
-                            temPrimeiraComunhao = comunhaoTratada
-                        )
                         showConfirmacaoDialog = false
-                        onSalvar(crismandoAtualizado)
+                        onSalvar(crismandoNovo)
                         onDismiss()
                     }
                 ) {
-                    Text(
-                        text = if (alteracoes.isEmpty()) "Fechar" else "Confirmar",
-                        fontWeight = FontWeight.Bold,
-                        color = corDestaque
-                    )
+                    Text(if (alteracoes.isEmpty()) "Fechar" else "Confirmar", fontWeight = FontWeight.Bold, color = corDestaque)
                 }
             },
             dismissButton = {
