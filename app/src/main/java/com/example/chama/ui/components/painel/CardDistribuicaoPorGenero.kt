@@ -1,4 +1,4 @@
-package com.example.chama.ui.components.gerencial
+package com.example.chama.ui.components.painel
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween

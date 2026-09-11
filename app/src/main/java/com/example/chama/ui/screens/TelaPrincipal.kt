@@ -6,12 +6,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,9 +21,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,9 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,21 +49,17 @@ import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.theme.GermaniaOne
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 
 @Composable
 fun TelaPrincipal(
     viewModel: MainViewModel,
     onIrParaLista: () -> Unit,
+    onIrParaPainelGerencial: () -> Unit,
     onIrParaRifas: () -> Unit,
-    onIrParaPainelGerencial: () -> Unit
+    onIrParaGestaoEventos: () -> Unit
 ) {
     val context = LocalContext.current
     val solidRedBackground = Color(0xFF5B0000)
-
-    val buttonBackground = Color(0x33000000)
-    val buttonBorderColor = Color(0x66FFFFFF)
-    val buttonShape = RoundedCornerShape(26.dp)
 
     val zipPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -71,14 +72,13 @@ fun TelaPrincipal(
             .fillMaxSize()
             .background(solidRedBackground)
     ) {
-        // Ícones de Ações no Canto Superior Direito (Importar e Exportar)
+        // Ações de Backup no Topo
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 40.dp, end = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Botão de Importar
             IconButton(
                 onClick = {
                     zipPickerLauncher.launch(
@@ -99,18 +99,15 @@ fun TelaPrincipal(
                 )
             }
 
-            // Botão de Exportar
             IconButton(
                 onClick = {
                     viewModel.viewModelScope.launch(Dispatchers.IO) {
                         val zipFile = viewModel.exportarBackupCompletoZip(context)
-
                         val uri = FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.provider",
                             zipFile
                         )
-
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "application/zip"
                             putExtra(Intent.EXTRA_STREAM, uri)
@@ -129,11 +126,11 @@ fun TelaPrincipal(
             }
         }
 
-        // Conteúdo central da tela
+        // Conteúdo central
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -142,15 +139,15 @@ fun TelaPrincipal(
                 contentDescription = "Logo do App",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(230.dp)
-                    .padding(top = 8.dp, bottom = 8.dp)
+                    .size(200.dp)
+                    .padding(vertical = 4.dp)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "CHAMA",
-                fontSize = 54.sp,
+                fontSize = 50.sp,
                 textAlign = TextAlign.Center,
                 fontFamily = GermaniaOne,
                 color = Color.White
@@ -158,102 +155,126 @@ fun TelaPrincipal(
 
             Text(
                 text = "Gerenciador da catequese de crisma",
-                fontSize = 19.sp,
+                fontSize = 18.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 2.dp),
                 fontFamily = GermaniaOne,
                 color = Color.White.copy(alpha = 0.95f)
             )
 
             Text(
                 text = "2026/2027",
-                fontSize = 17.sp,
+                fontSize = 16.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
+                modifier = Modifier.padding(top = 2.dp, bottom = 24.dp),
                 fontFamily = GermaniaOne,
                 color = Color.White.copy(alpha = 0.85f)
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
             Column(
-                modifier = Modifier.fillMaxWidth(0.82f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.fillMaxWidth(0.92f),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Button(
-                    onClick = onIrParaLista,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(0.dp),
-                    shape = buttonShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(buttonShape)
-                        .background(buttonBackground)
-                        .border(1.5.dp, buttonBorderColor, buttonShape)
+                // Linha 1: Presenças e Painel Gerencial
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Lista de Presença",
-                            fontFamily = GermaniaOne,
-                            fontSize = 20.sp,
-                            color = Color.White
-                        )
-                    }
+                    CardMenuInicial(
+                        titulo = "Presenças",
+                        subtitulo = "Chamada e faltas",
+                        icone = Icons.Default.Checklist,
+                        onClick = onIrParaLista,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    CardMenuInicial(
+                        titulo = "Painel",
+                        subtitulo = "Relatórios gerais",
+                        icone = Icons.Default.Assessment,
+                        onClick = onIrParaPainelGerencial,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
-                Button(
-                    onClick = onIrParaRifas,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(0.dp),
-                    shape = buttonShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(buttonShape)
-                        .background(buttonBackground)
-                        .border(1.5.dp, buttonBorderColor, buttonShape)
+                // Linha 2: Rifas e Eventos
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Gestão de rifas",
-                            fontFamily = GermaniaOne,
-                            fontSize = 20.sp,
-                            color = Color.White
-                        )
-                    }
-                }
+                    CardMenuInicial(
+                        titulo = "Rifas",
+                        subtitulo = "Blocos e acertos",
+                        icone = Icons.Default.ConfirmationNumber,
+                        onClick = onIrParaRifas,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                Button(
-                    onClick = onIrParaPainelGerencial,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(0.dp),
-                    shape = buttonShape,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(buttonShape)
-                        .background(buttonBackground)
-                        .border(1.5.dp, buttonBorderColor, buttonShape)
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Painel Gerencial",
-                            fontFamily = GermaniaOne,
-                            fontSize = 20.sp,
-                            color = Color.White
-                        )
-                    }
+                    CardMenuInicial(
+                        titulo = "Eventos",
+                        subtitulo = "Retiros e passeios",
+                        icone = Icons.Default.Event,
+                        onClick = onIrParaGestaoEventos,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CardMenuInicial(
+    titulo: String,
+    subtitulo: String,
+    icone: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cardShape = RoundedCornerShape(20.dp)
+    val cardBackground = Color(0x33000000)
+    val cardBorderColor = Color(0x55FFFFFF)
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1.2f)
+            .clip(cardShape)
+            .background(cardBackground)
+            .border(1.5.dp, cardBorderColor, cardShape)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icone,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = titulo,
+                fontFamily = GermaniaOne,
+                fontSize = 20.sp,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = subtitulo,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.75f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

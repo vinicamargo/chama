@@ -1,6 +1,5 @@
 package com.example.chama.ui.screens
 
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -48,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,13 +56,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
-import androidx.lifecycle.viewModelScope
 import com.example.chama.data.entity.Rifa
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.rifas.DialogConfirmarExclusaoBlocosEmUso
@@ -72,9 +68,6 @@ import com.example.chama.ui.components.rifas.DialogInserirBlocosEmLote
 import com.example.chama.ui.components.rifas.sheet.ListaVendedoresSheet
 import com.example.chama.ui.components.rifas.sheet.MenuSheet
 import com.example.chama.utils.TipoVendedor
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.io.File
 
 enum class TipoConteudoSheet { ACOES, SELECAO_VENDEDOR }
 
@@ -108,9 +101,12 @@ fun TelaRifas(
         listaRifas.groupBy { it.bloco }.toList().sortedBy { it.first }
     }
 
-    val context = LocalContext.current
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
 
     Scaffold(
+        topBar = { TopAppBar(title = { Text("Gestão de Rifas") }) },
         floatingActionButton = {
             Column(
                 horizontalAlignment = Alignment.End,
@@ -357,6 +353,7 @@ fun TelaRifas(
                 showAcoesSheet = false
                 conteudoSheet = TipoConteudoSheet.ACOES
                 viewModel.alterarFiltroNome("")
+                viewModel.selecionarRifa(null)
             }) {
                 when (conteudoSheet) {
                     TipoConteudoSheet.ACOES -> {

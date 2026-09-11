@@ -18,7 +18,7 @@ import java.util.Locale
 
 object PdfPresencaGenerator {
 
-    private const val PAGE_WIDTH = 842 // A4 Paisagem (pontos a 72 DPI)
+    private const val PAGE_WIDTH = 842
     private const val PAGE_HEIGHT = 595
     private const val MARGIN = 28f
 

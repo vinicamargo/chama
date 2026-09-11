@@ -8,7 +8,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,18 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +35,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,21 +43,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.chama.FiltroPresenca
 import com.example.chama.data.entity.Crismando
 import com.example.chama.ui.MainViewModel
+import com.example.chama.ui.components.common.detalhescrismando.DetalhesCrismandoContainer
 import com.example.chama.ui.components.presencas.ConfirmacaoBottomCard
 import com.example.chama.ui.components.presencas.CrismandoCard
-import com.example.chama.ui.components.presencas.DetalhesCrismando
+import com.example.chama.ui.components.presencas.DialogNovoCrismando
 import com.example.chama.ui.components.presencas.FiltroData
 import com.example.chama.ui.components.presencas.FiltroPresenca
-import com.example.chama.utils.DataVisualTransformation
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun TelaListasPresencas(viewModel: MainViewModel) {
@@ -74,26 +62,10 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
     val crismandoSelecionado by viewModel.crismandoSelecionado
     val filtroPresenca by viewModel.filtroPresencaSelecionado
     val dataFiltrada by viewModel.diaSelecionado.collectAsState()
-    val listaRifas by viewModel.listaRifas.collectAsState()
-    val diasComChamada by viewModel.diasComChamada.collectAsState()
-    val todasPresencas by viewModel.todasPresencas.collectAsState()
 
     var fabExpandido by remember { mutableStateOf(false) }
 
     var showNovoCrismandoDialog by remember { mutableStateOf(false) }
-    var nomeNovoCrismando by remember { mutableStateOf("") }
-    var dataNascNovoCrismando by remember { mutableStateOf("") }
-    var telefoneNovoCrismando by remember { mutableStateOf("") }
-    var responsavelNovoCrismando by remember { mutableStateOf("") }
-    var telResponsavelNovoCrismando by remember { mutableStateOf("") }
-
-    fun limparCamposCadastro() {
-        nomeNovoCrismando = ""
-        dataNascNovoCrismando = ""
-        telefoneNovoCrismando = ""
-        responsavelNovoCrismando = ""
-        telResponsavelNovoCrismando = ""
-    }
 
     val isCrismandoSelecionadoPresente = remember(crismandoSelecionado, presencas) {
         val estaPresente = presencas.find {
@@ -253,173 +225,23 @@ fun TelaListasPresencas(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxSize()
             ) {
                 crismandoDetalhes?.let { crismando ->
-                    val blocos = remember(listaRifas, crismando) {
-                        listaRifas
-                            .filter { it.vendedorId == crismando.crismandoId }
-                            .map { it.bloco }
-                            .distinct()
-                    }
-
-                    val dataDeHoje = viewModel.dataDeHoje
-                    val datasAteHoje = remember(diasComChamada) {
-                        diasComChamada.filter { runCatching { LocalDate.parse(it) <= dataDeHoje }.getOrDefault(false) }
-                    }
-
-                    val presencasDoCrismando = remember(todasPresencas, crismando, datasAteHoje) {
-                        todasPresencas.filter { it.crismandoId == crismando.crismandoId && it.data in datasAteHoje }
-                    }
-
-                    val totalEncontros = datasAteHoje.size
-                    val totalPresentes = presencasDoCrismando.count { it.estaPresente }
-                    val totalFaltas = totalEncontros - totalPresentes
-                    val porcentagem = if (totalEncontros > 0) (totalPresentes.toFloat() / totalEncontros) * 100f else 100f
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.6f))
-                    ) {
-                        DetalhesCrismando(
-                            crismando = crismando,
-                            blocosVinculados = blocos,
-                            totalFaltas = totalFaltas,
-                            totalPresentes = totalPresentes,
-                            totalEncontrosRealizados = totalEncontros,
-                            porcentagemPresenca = porcentagem,
-                            onFechar = { crismandoDetalhes = null },
-                            onExcluir = { c ->
-                                viewModel.excluirCrismando(c.crismandoId)
-                                crismandoDetalhes = null
-                            },
-                            onAtualizar = { crismandoAtualizado ->
-                                viewModel.atualizarCrismando(crismandoAtualizado)
-                                crismandoDetalhes = crismandoAtualizado
-                            }
-                        )
-                    }
+                    DetalhesCrismandoContainer(
+                        crismando = crismando,
+                        listaCrismandos = listaCrismandosFiltrada,
+                        viewModel = viewModel,
+                        onFechar = { crismandoDetalhes = null }
+                    )
                 }
             }
         }
 
         if (showNovoCrismandoDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showNovoCrismandoDialog = false
-                    limparCamposCadastro()
+            DialogNovoCrismando(
+                crismandoParaEditar = null,
+                onSalvar = { novoCrismando ->
+                    viewModel.registrarCrismando(novoCrismando)
                 },
-                title = {
-                    Text(text = "Novo Crismando", fontWeight = FontWeight.Bold)
-                },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = nomeNovoCrismando,
-                            onValueChange = { nomeNovoCrismando = it },
-                            label = { Text("Nome completo *") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = dataNascNovoCrismando,
-                            onValueChange = { input ->
-                                dataNascNovoCrismando = input.filter { it.isDigit() }.take(8)
-                            },
-                            label = { Text("Data de Nascimento") },
-                            placeholder = { Text("DD/MM/AAAA") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            visualTransformation = DataVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = telefoneNovoCrismando,
-                            onValueChange = { input ->
-                                telefoneNovoCrismando = input.filter { it.isDigit() }.take(11)
-                            },
-                            label = { Text("Telefone (apenas números)") },
-                            placeholder = { Text("Ex: 11987654321") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                        OutlinedTextField(
-                            value = responsavelNovoCrismando,
-                            onValueChange = { responsavelNovoCrismando = it },
-                            label = { Text("Nome do Responsável") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = telResponsavelNovoCrismando,
-                            onValueChange = { input ->
-                                telResponsavelNovoCrismando = input.filter { it.isDigit() }.take(11)
-                            },
-                            label = { Text("Telefone do Responsável") },
-                            placeholder = { Text("Ex: 11987654321") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (nomeNovoCrismando.isNotBlank()) {
-                                val dataIso = runCatching {
-                                    if (dataNascNovoCrismando.length == 8) {
-                                        val dtf = DateTimeFormatter.ofPattern("ddMMyyyy")
-                                        LocalDate.parse(dataNascNovoCrismando, dtf).toString()
-                                    } else {
-                                        null
-                                    }
-                                }.getOrNull()
-
-                                viewModel.registrarCrismando(
-                                    Crismando(
-                                        crismandoId = 0L,
-                                        nome = nomeNovoCrismando.trim(),
-                                        fotoUrl = null,
-                                        dataNascimento = dataIso,
-                                        telefone = telefoneNovoCrismando.trim().ifBlank { null },
-                                        nomeResponsavel = responsavelNovoCrismando.trim().ifBlank { null },
-                                        telefoneResponsavel = telResponsavelNovoCrismando.trim().ifBlank { null }
-                                    )
-                                )
-                                showNovoCrismandoDialog = false
-                                limparCamposCadastro()
-                            }
-                        }
-                    ) {
-                        Text("Salvar", fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showNovoCrismandoDialog = false
-                            limparCamposCadastro()
-                        }
-                    ) {
-                        Text("Cancelar")
-                    }
-                }
+                onDismiss = { showNovoCrismandoDialog = false }
             )
         }
     }

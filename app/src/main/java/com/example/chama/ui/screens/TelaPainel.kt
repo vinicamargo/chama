@@ -36,14 +36,15 @@ import androidx.compose.ui.unit.dp
 import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
-import com.example.chama.ui.components.gerencial.AniversarianteInfo
-import com.example.chama.ui.components.gerencial.CardCrismandosPorFaltas
-import com.example.chama.ui.components.gerencial.CardDistribuicaoGenero
-import com.example.chama.ui.components.gerencial.CardFaixaEtaria
-import com.example.chama.ui.components.gerencial.CardFrequenciaGeral
-import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
-import com.example.chama.ui.components.gerencial.CardProximosAniversarios
-import com.example.chama.ui.components.presencas.DetalhesCrismando
+import com.example.chama.ui.components.common.detalhescrismando.DetalhesCrismandoContainer
+import com.example.chama.ui.components.painel.AniversarianteInfo
+import com.example.chama.ui.components.painel.CardCrismandosPorFaltas
+import com.example.chama.ui.components.painel.CardDistribuicaoGenero
+import com.example.chama.ui.components.painel.CardFaixaEtaria
+import com.example.chama.ui.components.painel.CardFrequenciaGeral
+import com.example.chama.ui.components.painel.CardGraficoSacramentos
+import com.example.chama.ui.components.painel.CardMetricasCabecalho
+import com.example.chama.ui.components.painel.CardProximosAniversarios
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
@@ -211,6 +212,10 @@ fun TelaPainelGerencial(
         }.sortedBy { it.diasRestantes }
     }
 
+    val totalBatizados = remember(crismandos) { crismandos.count { it.isBatizado } }
+    val totalCertidaoEntregue = remember(crismandos) { crismandos.count { it.certidaoBatismoEntregue } }
+    val totalPrimeiraComunhao = remember(crismandos) { crismandos.count { it.temPrimeiraComunhao } }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -264,6 +269,12 @@ fun TelaPainelGerencial(
                     total = totalCrismandos
                 )
 
+                CardGraficoSacramentos(
+                    crismandos = crismandos,
+                    corDestaque = Color(0xFF9B8800),
+                    onCrismandoClick = { crismandoDetalhes = it }
+                )
+
                 CardProximosAniversarios(
                     lista = proximosAniversariantes,
                     onCrismandoClick = { crismandoDetalhes = it }
@@ -285,30 +296,16 @@ fun TelaPainelGerencial(
                     }
                     val totalEncontros = datasAteHoje.size
                     val totalPresentes = presencasDoCrismando.count { it.estaPresente }
-                    val totalFaltas = (totalEncontros - totalPresentes).coerceAtLeast(0)
-                    val porcentagem = if (totalEncontros > 0) (totalPresentes.toFloat() / totalEncontros) * 100f else 100f
 
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        DetalhesCrismando(
+                        DetalhesCrismandoContainer(
                             crismando = crismando,
-                            blocosVinculados = blocos,
-                            totalFaltas = totalFaltas,
-                            totalPresentes = totalPresentes,
-                            totalEncontrosRealizados = totalEncontros,
-                            porcentagemPresenca = porcentagem,
-                            onFechar = { crismandoDetalhes = null },
-                            onExcluir = { c ->
-                                viewModel.excluirCrismando(c.crismandoId)
-                                crismandoDetalhes = null
-                            },
-                            onAtualizar = { crismandoAtualizado ->
-                                viewModel.atualizarCrismando(crismandoAtualizado)
-                                crismandoDetalhes = crismandoAtualizado
-                            }
+                            viewModel = viewModel,
+                            onFechar = { crismandoDetalhes = null }
                         )
                     }
                 }

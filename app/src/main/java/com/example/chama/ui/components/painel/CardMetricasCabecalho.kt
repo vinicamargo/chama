@@ -1,4 +1,4 @@
-package com.example.chama.ui.components.gerencial
+package com.example.chama.ui.components.painel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

@@ -18,6 +18,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -385,6 +386,9 @@ class MainViewModelTest {
 
     @Test
     fun testVincularEDesvincularVendedorDoBloco() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 10
+        coEvery { rifaDao.buscarDonoDoBloco(3) } returns null
+
         viewModel.vincularVendedorAoBloco(10L, 3)
         advanceUntilIdle()
         coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(10L, 3) }
@@ -541,6 +545,9 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val tempDir = Files.createTempDirectory("test_zip").toFile()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
 
         val zip = viewModel.exportarBackupCompletoZip(mockContext)
 
@@ -555,15 +562,30 @@ class MainViewModelTest {
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.putNextEntry(ZipEntry("dados.csv"))
-            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,BlocosRifa,20/09/26\n" +
-                    "Lucas Cavalcanti,,2000-01-01,11999999999,,,1;2,O\n"
-            zos.write(csvContent.toByteArray(Charsets.UTF_8))
+            val cabecalho = listOf(
+                "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+                "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+                "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+                "RelacionamentoResponsavel", "CelularResponsavel",
+                "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+                "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa", "20/09/26"
+            ).joinToString(",") + "\n"
+
+            val linha = listOf(
+                "Lucas Cavalcanti", "", "2000-01-01", "", "", "", "", "", "", "", "", "", "", "", "",
+                "S", "S", "", "", "N", "S", "1;2", "O"
+            ).joinToString(",") + "\n"
+
+            zos.write((cabecalho + linha).toByteArray(Charsets.UTF_8))
             zos.closeEntry()
         }
 
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         coEvery { crismandoDao.inserir(any()) } returns 50L
@@ -574,8 +596,8 @@ class MainViewModelTest {
         coVerify(timeout = 2000) { presencaDao.deleteAllPresencas() }
         coVerify(timeout = 2000) { crismandoDao.inserir(match { it.nome == "Lucas Cavalcanti" }) }
         coVerify(timeout = 2000) { vendedorDao.inserirVendedor(Vendedor(vendedorId = 50L, tipo = TipoVendedor.CRISMANDO)) }
-        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 1) }
-        coVerify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 2) }
+        verify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 1) }
+        verify(timeout = 2000) { rifaDao.vincularVendedorAoBloco(50L, 2) }
         coVerify(timeout = 2000) { presencaDao.gerarListaPresenca(match { it.first().estaPresente }) }
     }
 
@@ -593,11 +615,345 @@ class MainViewModelTest {
         val mockContext = mockk<Context>(relaxed = true)
         val mockUri = mockk<Uri>()
         every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
         every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
 
         viewModel.importarBackupZip(mockContext, mockUri)
         advanceUntilIdle()
 
         coVerify(exactly = 0) { crismandoDao.inserir(any()) }
+    }
+
+    @Test
+    fun testChecarStatusBloco_deveCobrirTodosOsStatus() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 10
+        coEvery { rifaDao.buscarDonoDoBloco(1) } returns null
+        coEvery {
+            rifaDao.buscarDonoDoBloco(2)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 1L, nomeVendedor = "Lucas")
+        coEvery {
+            rifaDao.buscarDonoDoBloco(3)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 2L, nomeVendedor = "Mariana")
+
+        val statusInexistente = viewModel.checarStatusBloco(15, crismandoIdAtual = 1L)
+        assertTrue(statusInexistente is StatusBlocoRifa.Inexistente)
+        assertEquals(10, (statusInexistente as StatusBlocoRifa.Inexistente).ultimoBloco)
+
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 0
+        val statusZero = viewModel.checarStatusBloco(1, crismandoIdAtual = 1L)
+        assertTrue(statusZero is StatusBlocoRifa.Inexistente)
+
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 10
+
+        val statusDisponivel = viewModel.checarStatusBloco(1, crismandoIdAtual = 1L)
+        assertTrue(statusDisponivel is StatusBlocoRifa.Disponivel)
+
+        val statusMesmo = viewModel.checarStatusBloco(2, crismandoIdAtual = 1L)
+        assertTrue(statusMesmo is StatusBlocoRifa.Ocupado)
+        assertTrue((statusMesmo as StatusBlocoRifa.Ocupado).isMesmoCrismando)
+
+        val statusOutro = viewModel.checarStatusBloco(3, crismandoIdAtual = 1L)
+        assertTrue(statusOutro is StatusBlocoRifa.Ocupado)
+        org.junit.Assert.assertFalse((statusOutro as StatusBlocoRifa.Ocupado).isMesmoCrismando)
+        assertEquals("Mariana", (statusOutro as StatusBlocoRifa.Ocupado).nomeResponsavel)
+    }
+
+    @Test
+    fun testVincularVendedorAoBloco_comCallback_cobreTodosOsResultados() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 5
+        coEvery { rifaDao.buscarDonoDoBloco(1) } returns null
+        coEvery {
+            rifaDao.buscarDonoDoBloco(2)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 10L, nomeVendedor = "Dono 10")
+        coEvery {
+            rifaDao.buscarDonoDoBloco(3)
+        } returns com.example.chama.data.dao.BlocoDonoInfo(vendedorId = 99L, nomeVendedor = "Outro Dono")
+
+        var resSucesso: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 1) { resSucesso = it }
+        advanceUntilIdle()
+        assertTrue(resSucesso is VinculoBlocoResult.Sucesso)
+        coVerify { rifaDao.vincularVendedorAoBloco(10L, 1) }
+
+        var resInexistente: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 99) { resInexistente = it }
+        advanceUntilIdle()
+        assertTrue(resInexistente is VinculoBlocoResult.BlocoInexistente)
+
+        var resMesmo: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 2) { resMesmo = it }
+        advanceUntilIdle()
+        assertTrue(resMesmo is VinculoBlocoResult.BlocoOcupado)
+        assertEquals("este mesmo crismando", (resMesmo as VinculoBlocoResult.BlocoOcupado).nomeResponsavel)
+
+        var resOutro: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 3) { resOutro = it }
+        advanceUntilIdle()
+        assertTrue(resOutro is VinculoBlocoResult.BlocoOcupado)
+        assertEquals("Outro Dono", (resOutro as VinculoBlocoResult.BlocoOcupado).nomeResponsavel)
+
+        coEvery { rifaDao.buscarDonoDoBloco(4) } throws RuntimeException("Falha de IO simulada")
+        var resErro: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(10L, 4) { resErro = it }
+        advanceUntilIdle()
+        assertTrue(resErro is VinculoBlocoResult.ErroGenerico)
+        assertEquals("Falha de IO simulada", (resErro as VinculoBlocoResult.ErroGenerico).mensagem)
+    }
+
+    @Test
+    fun testImportarBackupZip_comSacramentosCompletosEPresencaAlternativa() = runTest {
+        val tempDir = Files.createTempDirectory("test_import_sacramentos").toFile()
+        val zipFile = File(tempDir, "backup_sacramentos.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("dados.csv"))
+            val cabecalho = listOf(
+                "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+                "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+                "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+                "RelacionamentoResponsavel", "CelularResponsavel",
+                "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+                "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa", "20/09/26"
+            ).joinToString(",") + "\n"
+
+            val linha1 = listOf(
+                "Carlos Teste", "", "2002-05-10", "", "", "", "", "", "", "", "", "", "", "", "",
+                "N", "S", "Nenhuma", "", "N", "N", "1", "P"
+            ).joinToString(",") + "\n"
+
+            zos.write((cabecalho + linha1).toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        coEvery { crismandoDao.inserir(any()) } returns 70L
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) {
+            crismandoDao.inserir(match {
+                it.nome == "Carlos Teste" &&
+                        !it.isBatizado &&
+                        !it.certidaoBatismoEntregue &&
+                        it.paroquiaBatismo == "Nenhuma" &&
+                        !it.temPrimeiraComunhao
+            })
+        }
+        coVerify(timeout = 2000) {
+            presencaDao.gerarListaPresenca(match { it.first().estaPresente })
+        }
+    }
+
+    @Test
+    fun testImportarBackupZip_comCsvApenasCabecalho_naoProcessa() = runTest {
+        val tempDir = Files.createTempDirectory("test_import_header_only").toFile()
+        val zipFile = File(tempDir, "backup_header.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("dados.csv"))
+            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa,20/09/26\n"
+            zos.write(csvContent.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { crismandoDao.inserir(any()) }
+    }
+
+    @Test
+    fun testImportarBackupZip_comNomeBlank_ignoraLinha() = runTest {
+        val tempDir = Files.createTempDirectory("test_import_blank_name").toFile()
+        val zipFile = File(tempDir, "backup_blank_name.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("dados.csv"))
+            val csvContent = "Nome,FotoUrl,DataNascimento,Telefone,NomeResponsavel,TelefoneResponsavel,IsBatizado,CertidaoBatismoEntregue,ParoquiaBatismo,TemPrimeiraComunhao,BlocosRifa,20/09/26\n" +
+                    "   ,,2000-01-01,11999999999,,,,,,,,\n"
+            zos.write(csvContent.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { crismandoDao.inserir(any()) }
+    }
+
+    @Test
+    fun testImportarBackupZip_comExcecao_trataErro() = runTest {
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.contentResolver.openInputStream(mockUri) } throws RuntimeException("Erro ao abrir stream")
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { crismandoDao.inserir(any()) }
+    }
+
+    @Test
+    fun testVincularVendedorAoBloco_ultimoBlocoZero_retornaInexistente() = runTest {
+        coEvery { rifaDao.getMaiorNumeroBloco() } returns 0
+
+        var resultado: VinculoBlocoResult? = null
+        viewModel.vincularVendedorAoBloco(1L, 1) { resultado = it }
+        advanceUntilIdle()
+
+        assertTrue(resultado is VinculoBlocoResult.BlocoInexistente)
+        assertEquals(0, (resultado as VinculoBlocoResult.BlocoInexistente).ultimoBloco)
+    }
+
+    @Test
+    fun testInit_diasSemDomingoRecente_selecionaPrimeiroOrdenado() = runTest {
+        val mockPresencaDao = mockk<PresencaDao>(relaxed = true)
+        val diasFuturos = listOf("2099-01-02", "2099-01-05")
+        coEvery { mockPresencaDao.buscarDiasComPresencas() } returns flowOf(diasFuturos)
+        coEvery { mockPresencaDao.buscarPresencasPorData(any()) } returns flowOf(emptyList())
+
+        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao, testDispatcher)
+        advanceUntilIdle()
+
+        assertEquals("2099-01-02", localViewModel.diaSelecionado.value)
+    }
+
+    @Test
+    fun testFiltroNomeComZeroResultados() = runTest {
+        subscribeToFlows()
+        advanceUntilIdle()
+
+        viewModel.alterarFiltroNome("NomeInexistenteXYZ")
+        Snapshot.sendApplyNotifications()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.listaCrismandosFiltrada.value.isEmpty())
+    }
+
+    @Test
+    fun testImportarBackupZip_cabecalhoCurtoESacramentosNumericosEDataInvalida() = runTest {
+        val tempDir = Files.createTempDirectory("test_import_short_header").toFile()
+        val zipFile = File(tempDir, "backup_short.zip")
+
+        ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+            zos.putNextEntry(ZipEntry("dados.csv"))
+            val cabecalho = listOf(
+                "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+                "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+                "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+                "RelacionamentoResponsavel", "CelularResponsavel",
+                "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+                "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa"
+            ).joinToString(",") + "\n"
+
+            val linha = listOf(
+                "Ana Silva", "", "data_invalida", "", "", "", "", "", "", "", "", "", "", "", "",
+                "1", "1", "", "", "1", "0", "bloco_invalido"
+            ).joinToString(",") + "\n"
+
+            zos.write((cabecalho + linha).toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockUri = mockk<Uri>()
+        every { mockContext.cacheDir } returns tempDir
+        every { mockContext.getCacheDir() } returns tempDir
+        every { mockContext.filesDir } returns tempDir
+        every { mockContext.getFilesDir() } returns tempDir
+        every { mockContext.contentResolver.openInputStream(mockUri) } answers { FileInputStream(zipFile) }
+
+        coEvery { crismandoDao.inserir(any()) } returns 80L
+
+        viewModel.importarBackupZip(mockContext, mockUri)
+        advanceUntilIdle()
+
+        coVerify(timeout = 2000) {
+            crismandoDao.inserir(match {
+                it.nome == "Ana Silva" &&
+                        it.isBatizado &&
+                        it.certidaoBatismoEntregue &&
+                        !it.temPrimeiraComunhao
+            })
+        }
+    }
+
+    @Test
+    fun testExportarBackupCompletoCSV_semDiasComChamada() = runTest {
+        val mockPresencaDao = mockk<PresencaDao>(relaxed = true)
+        coEvery { mockPresencaDao.buscarDiasComPresencas() } returns flowOf(emptyList())
+        coEvery { mockPresencaDao.buscarPresencasPorData(any()) } returns flowOf(emptyList())
+        coEvery { mockPresencaDao.buscarTodasAsPresencasStatic() } returns emptyList()
+
+        val localViewModel = MainViewModel(crismandoDao, mockPresencaDao, vendedorDao, rifaDao, testDispatcher)
+        advanceUntilIdle()
+
+        val csv = localViewModel.exportarBackupCompletoCSV()
+        assertTrue(csv.contains("Nome,FotoUrl"))
+        assertTrue(csv.contains("Lucas Cavalcanti"))
+    }
+
+    @Test
+    fun testExportarBackupCompletoCSV_cobreTodosCamposEBrancos() = runTest {
+        val crismandoCompleto = Crismando(
+            crismandoId = 10L,
+            nome = "Ana Completa",
+            fotoUrl = "http://foto.com/ana.jpg",
+            dataNascimento = "2001-02-03",
+            celular = "11988887777",
+            relacionamentoResponsavel = "Mae da Ana",
+            celularResponsavel = "11977776666",
+            isBatizado = false,
+            certidaoBatismoEntregue = true,
+            paroquiaBatismo = "Paróquia São José",
+            temPrimeiraComunhao = false
+        )
+        crismandosFlow.value = listOf(crismandoCompleto)
+        rifasFlow.value = listOf(Rifa(numero = 1, bloco = 5, vendedorId = 10L))
+
+        coEvery { presencaDao.buscarTodasAsPresencasStatic() } returns listOf(
+            Presenca(crismandoId = 10L, data = "2026-09-20", estaPresente = false)
+        )
+
+        subscribeToFlows()
+        advanceUntilIdle()
+
+        val csv = viewModel.exportarBackupCompletoCSV()
+
+        assertTrue(csv.contains("Ana Completa"))
+        assertTrue(csv.contains("http://foto.com/ana.jpg"))
+        assertTrue(csv.contains("2001-02-03"))
+        assertTrue(csv.contains("11988887777"))
+        assertTrue(csv.contains("Mae da Ana"))
+        assertTrue(csv.contains("11977776666"))
+        assertTrue(csv.contains(",N,S,Paróquia São José,,S,N,"))
+        assertTrue(csv.contains("\"5\""))
+        assertTrue(csv.contains("F"))
     }
 }

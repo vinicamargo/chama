@@ -1,9 +1,11 @@
 package com.example.chama.ui
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chama.BuildConfig
@@ -22,6 +24,7 @@ import com.example.chama.data.model.PessoaVendedora
 import com.example.chama.utils.FileUtils
 import com.example.chama.utils.GeneroUtils
 import com.example.chama.utils.NormalizacaoUtils
+import com.example.chama.utils.PdfFichasGenerator
 import com.example.chama.utils.ZipBackupUtils
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +47,20 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.zip.ZipInputStream
 import kotlin.random.Random
+
+sealed interface StatusBlocoRifa {
+    data object Vazio : StatusBlocoRifa
+    data object Disponivel : StatusBlocoRifa
+    data class Ocupado(val nomeResponsavel: String, val isMesmoCrismando: Boolean) : StatusBlocoRifa
+    data class Inexistente(val ultimoBloco: Int) : StatusBlocoRifa
+}
+
+sealed interface VinculoBlocoResult {
+    data object Sucesso : VinculoBlocoResult
+    data class BlocoOcupado(val nomeResponsavel: String) : VinculoBlocoResult
+    data class BlocoInexistente(val ultimoBloco: Int) : VinculoBlocoResult
+    data class ErroGenerico(val mensagem: String) : VinculoBlocoResult
+}
 
 class MainViewModel(
     private val crismandoDao: CrismandoDao,
@@ -271,9 +288,49 @@ class MainViewModel(
             null else rifa
     }
 
-    fun vincularVendedorAoBloco(vendedorId: Long, bloco: Int) {
+    suspend fun checarStatusBloco(bloco: Int, crismandoIdAtual: Long): StatusBlocoRifa = withContext(ioDispatcher) {
+        val ultimoBloco = rifaDao.getMaiorNumeroBloco()
+        if (bloco > ultimoBloco || ultimoBloco == 0) {
+            return@withContext StatusBlocoRifa.Inexistente(ultimoBloco)
+        }
+
+        val dono = rifaDao.buscarDonoDoBloco(bloco)
+        return@withContext when {
+            dono == null -> StatusBlocoRifa.Disponivel
+            dono.vendedorId == crismandoIdAtual -> StatusBlocoRifa.Ocupado(dono.nomeVendedor, isMesmoCrismando = true)
+            else -> StatusBlocoRifa.Ocupado(dono.nomeVendedor, isMesmoCrismando = false)
+        }
+    }
+
+    fun vincularVendedorAoBloco(
+        vendedorId: Long,
+        bloco: Int,
+        onResultado: (VinculoBlocoResult) -> Unit = {}
+    ) {
         viewModelScope.launch(ioDispatcher) {
-            rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
+            try {
+                val ultimoBloco = rifaDao.getMaiorNumeroBloco()
+                if (bloco > ultimoBloco || ultimoBloco == 0) {
+                    withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.BlocoInexistente(ultimoBloco)) }
+                    return@launch
+                }
+
+                val dono = rifaDao.buscarDonoDoBloco(bloco)
+                when {
+                    dono == null -> {
+                        rifaDao.vincularVendedorAoBloco(vendedorId, bloco)
+                        withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.Sucesso) }
+                    }
+                    dono.vendedorId == vendedorId -> {
+                        withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.BlocoOcupado("este mesmo crismando")) }
+                    }
+                    else -> {
+                        withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.BlocoOcupado(dono.nomeVendedor)) }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { onResultado(VinculoBlocoResult.ErroGenerico(e.localizedMessage ?: "Erro ao vincular")) }
+            }
         }
     }
 
@@ -352,17 +409,23 @@ class MainViewModel(
         viewModelScope.launch(ioDispatcher) {
             try {
                 var arquivoCsv: File? = null
+                val pastaFotosDestino = File(context.filesDir, "fotos_crismandos").apply { mkdirs() }
+                val fotosRestauradas = mutableMapOf<String, String>()
 
-                // 1. Extrai apenas o dados.csv de dentro do ZIP
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     ZipInputStream(BufferedInputStream(inputStream)).use { zis ->
                         var entry = zis.nextEntry
                         while (entry != null) {
+                            val nomeArquivo = File(entry.name).name
                             if (entry.name == "dados.csv" || entry.name.endsWith(".csv")) {
-                                val tempCsv = File(context.cacheDir, "dados_temp.csv")
+                                val tempCsv = File(context.cacheDir, "dados_temp_${System.currentTimeMillis()}.csv")
                                 FileOutputStream(tempCsv).use { fos -> zis.copyTo(fos) }
                                 arquivoCsv = tempCsv
-                                break
+                            } else if (entry.name.startsWith("fotos/") && !entry.isDirectory) {
+                                val arquivoFoto = File(pastaFotosDestino, nomeArquivo)
+                                FileOutputStream(arquivoFoto).use { fos -> zis.copyTo(fos) }
+                                val chaveHash = nomeArquivo.substringBeforeLast(".").removePrefix("perfil_")
+                                fotosRestauradas[chaveHash] = arquivoFoto.absolutePath
                             }
                             zis.closeEntry()
                             entry = zis.nextEntry
@@ -373,22 +436,27 @@ class MainViewModel(
                 if (arquivoCsv == null || !arquivoCsv.exists()) return@launch
 
                 val linhas = arquivoCsv.readLines().filter { it.isNotBlank() }
-                if (linhas.size <= 1) return@launch
+                if (linhas.size <= 1) {
+                    arquivoCsv.delete()
+                    return@launch
+                }
 
                 val cabecalho = parseCsvLine(linhas[0])
                 val formatter = DateTimeFormatter.ofPattern("dd/MM/yy")
 
-                // Extrai datas dos domingos a partir da coluna 7 (após BlocosRifa)
-                val datasLista = if (cabecalho.size > 7) {
-                    cabecalho.drop(7).mapNotNull { dataStr ->
+                // ⚠️ As datas começam após BlocosRifa (Índice 22)
+                val indiceInicioDatas = 22
+                val datasLista = if (cabecalho.size > indiceInicioDatas) {
+                    cabecalho.drop(indiceInicioDatas).mapNotNull { dataStr ->
                         runCatching { LocalDate.parse(dataStr.trim(), formatter).toString() }.getOrNull()
                     }
                 } else emptyList()
 
-                // Identifica o maior bloco de rifas para instanciar as rifas no banco
                 val linhasDados = linhas.drop(1).map { parseCsvLine(it) }
+
+                // BlocosRifa agora está no índice 21
                 val maiorBloco = linhasDados.maxOfOrNull { colunas ->
-                    val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                    val blocosTexto = colunas.getOrNull(21)?.trim() ?: ""
                     if (blocosTexto.isNotBlank()) {
                         blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }.maxOrNull() ?: 0
                     } else 0
@@ -409,25 +477,70 @@ class MainViewModel(
                     rifaDao.inserirRifas(listaRifasIniciais)
                 }
 
-                // 2. Insere os crismandos persistindo o gênero inferido pelo nome
                 linhasDados.forEach { colunas ->
                     val nome = NormalizacaoUtils.normalizarNome(colunas.getOrNull(0))
                     if (nome.isBlank()) return@forEach
 
-                    val fotoUrl = colunas.getOrNull(1)?.trim()?.ifBlank { null }
+                    val fotoCsv = colunas.getOrNull(1)?.trim()?.ifBlank { null }
                     val dataNasc = NormalizacaoUtils.normalizarDataNascimento(colunas.getOrNull(2))
-                    val tel = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(3))
-                    val nomeResp = NormalizacaoUtils.normalizarNome(colunas.getOrNull(4)).ifBlank { null }
-                    val telResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(5))
+                    val cpf = colunas.getOrNull(3)?.filter { it.isDigit() }?.ifBlank { null }
+                    val celular = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(4))
+
+                    val cidNasc = colunas.getOrNull(5)?.trim()?.ifBlank { null }
+                    val ufNasc = colunas.getOrNull(6)?.trim()?.ifBlank { null }
+                    val paisNasc = colunas.getOrNull(7)?.trim()?.ifBlank { "Brasil" } ?: "Brasil"
+                    val endereco = colunas.getOrNull(8)?.trim()?.ifBlank { null }
+                    val cep = colunas.getOrNull(9)?.filter { it.isDigit() }?.ifBlank { null }
+                    val cidAtual = colunas.getOrNull(10)?.trim()?.ifBlank { "Santo André" } ?: "Santo André"
+
+                    val nomePai = NormalizacaoUtils.normalizarNome(colunas.getOrNull(11)).ifBlank { null }
+                    val nomeMae = NormalizacaoUtils.normalizarNome(colunas.getOrNull(12)).ifBlank { null }
+                    val relResp = colunas.getOrNull(13)?.trim()?.ifBlank { null }
+                    val celResp = NormalizacaoUtils.normalizarTelefone(colunas.getOrNull(14))
+
+                    // Sacramentos (Índices 15 a 20)
+                    val isBatizadoStr = colunas.getOrNull(15)?.trim() ?: "S"
+                    val isBatizado = isBatizadoStr.equals("S", ignoreCase = true) || isBatizadoStr == "1"
+
+                    val batNaDioceseStr = colunas.getOrNull(16)?.trim() ?: "S"
+                    val batizadoNaDiocese = batNaDioceseStr.equals("S", ignoreCase = true) || batNaDioceseStr == "1"
+
+                    val paroquiaBatismo = colunas.getOrNull(17)?.trim()?.ifBlank { null }
+                    val cidadeBatismo = colunas.getOrNull(18)?.trim()?.ifBlank { null }
+
+                    val certidaoEntregueStr = colunas.getOrNull(19)?.trim() ?: "N"
+                    val certidaoEntregue = certidaoEntregueStr.equals("S", ignoreCase = true) || certidaoEntregueStr == "1"
+
+                    val temPrimeiraComunhaoStr = colunas.getOrNull(20)?.trim() ?: "S"
+                    val temPrimeiraComunhao = temPrimeiraComunhaoStr.equals("S", ignoreCase = true) || temPrimeiraComunhaoStr == "1"
+
+                    val chaveFoto = FileUtils.gerarChaveCrismando(nome, dataNasc)
+                    val fotoFinal = fotosRestauradas[chaveFoto] ?: fotoCsv
 
                     val crismando = Crismando(
+                        crismandoId = 0L,
                         nome = nome,
-                        fotoUrl = fotoUrl,
                         dataNascimento = dataNasc,
-                        telefone = tel,
-                        nomeResponsavel = nomeResp,
-                        telefoneResponsavel = telResp,
-                        genero = GeneroUtils.inferirGenero(nome)
+                        cpf = cpf,
+                        celular = celular,
+                        fotoUrl = fotoFinal,
+                        genero = GeneroUtils.inferirGenero(nomeCompleto = nome),
+                        cidadeNascimento = cidNasc,
+                        estadoNascimento = ufNasc,
+                        paisNascimento = paisNasc,
+                        endereco = endereco,
+                        cep = cep,
+                        cidadeAtual = cidAtual,
+                        nomePai = nomePai,
+                        nomeMae = nomeMae,
+                        relacionamentoResponsavel = relResp,
+                        celularResponsavel = celResp,
+                        isBatizado = isBatizado,
+                        batizadoNaDiocese = batizadoNaDiocese,
+                        paroquiaBatismo = paroquiaBatismo,
+                        cidadeBatismo = cidadeBatismo,
+                        certidaoBatismoEntregue = certidaoEntregue,
+                        temPrimeiraComunhao = temPrimeiraComunhao
                     )
 
                     val novoId = crismandoDao.inserir(crismando)
@@ -436,8 +549,8 @@ class MainViewModel(
                         Vendedor(vendedorId = novoId, tipo = TipoVendedor.CRISMANDO)
                     )
 
-                    // Rifas
-                    val blocosTexto = colunas.getOrNull(6)?.trim() ?: ""
+                    // Blocos vinculados (Índice 21)
+                    val blocosTexto = colunas.getOrNull(21)?.trim() ?: ""
                     if (blocosTexto.isNotBlank()) {
                         val blocosDoCrismando = blocosTexto.split(";", ",").mapNotNull { it.trim().toIntOrNull() }
                         blocosDoCrismando.forEach { numBloco ->
@@ -445,8 +558,8 @@ class MainViewModel(
                         }
                     }
 
-                    // Presenças
-                    val presencasColunas = if (colunas.size > 7) colunas.drop(7) else emptyList()
+                    // Presenças (Índice 22 em diante)
+                    val presencasColunas = if (colunas.size > indiceInicioDatas) colunas.drop(indiceInicioDatas) else emptyList()
                     val listaPresencas = datasLista.mapIndexed { i, dataIso ->
                         val valor = presencasColunas.getOrNull(i)?.trim() ?: ""
                         val presente = valor.equals("O", ignoreCase = true) || valor.equals("P", ignoreCase = true)
@@ -510,23 +623,24 @@ class MainViewModel(
             }
 
         val csv = StringBuilder()
-        csv.append("\uFEFF")
+        csv.append("\uFEFF") // BOM UTF-8 para Excel
 
+        // 22 colunas de metadados + datas dos encontros
         val colunasCabecalho = listOf(
-            "Nome",
-            "FotoUrl",
-            "DataNascimento",
-            "Telefone",
-            "NomeResponsavel",
-            "TelefoneResponsavel",
-            "BlocosRifa"
+            "Nome", "FotoUrl", "DataNascimento", "CPF", "Celular",
+            "CidadeNascimento", "EstadoNascimento", "PaisNascimento",
+            "Endereco", "CEP", "CidadeAtual", "NomePai", "NomeMae",
+            "RelacionamentoResponsavel", "CelularResponsavel",
+            "IsBatizado", "BatizadoNaDiocese", "ParoquiaBatismo", "CidadeBatismo",
+            "CertidaoBatismoEntregue", "TemPrimeiraComunhao", "BlocosRifa"
         ) + datasFormatadas
+
         csv.append(colunasCabecalho.joinToString(",")).append("\n")
 
         crismandos.forEach { crismando ->
             val blocosDoCrismando = mapaBlocosPorCrismando[crismando.crismandoId] ?: emptyList()
             val textoBlocos = if (blocosDoCrismando.isNotEmpty()) {
-                "\"${blocosDoCrismando.joinToString(";")}\"" // Ex: "1;2;3"
+                "\"${blocosDoCrismando.joinToString(";")}\""
             } else {
                 ""
             }
@@ -535,9 +649,24 @@ class MainViewModel(
                 crismando.nome,
                 crismando.fotoUrl ?: "",
                 crismando.dataNascimento ?: "",
-                crismando.telefone ?: "",
-                crismando.nomeResponsavel ?: "",
-                crismando.telefoneResponsavel ?: "",
+                crismando.cpf ?: "",
+                crismando.celular ?: "",
+                crismando.cidadeNascimento ?: "",
+                crismando.estadoNascimento ?: "",
+                crismando.paisNascimento ?: "Brasil",
+                crismando.endereco ?: "",
+                crismando.cep ?: "",
+                crismando.cidadeAtual ?: "Santo André",
+                crismando.nomePai ?: "",
+                crismando.nomeMae ?: "",
+                crismando.relacionamentoResponsavel ?: "",
+                crismando.celularResponsavel ?: "",
+                if (crismando.isBatizado) "S" else "N",
+                if (crismando.batizadoNaDiocese) "S" else "N",
+                crismando.paroquiaBatismo ?: "",
+                crismando.cidadeBatismo ?: "",
+                if (crismando.certidaoBatismoEntregue) "S" else "N",
+                if (crismando.temPrimeiraComunhao) "S" else "N",
                 textoBlocos
             )
 
@@ -570,5 +699,29 @@ class MainViewModel(
         }
         colunas.add(sb.toString().trim().removeSurrounding("\""))
         return colunas
+    }
+
+    fun exportarFichasPdf(context: Context) {
+        viewModelScope.launch(ioDispatcher) {
+            val crismandos = listaCrismandosOriginal.value.sortedBy { it.nome }
+
+            // Gera o arquivo .pdf físico no cache
+            val pdfFile = PdfFichasGenerator.gerarPdfFichas(context, crismandos)
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                pdfFile
+            )
+
+            withContext(Dispatchers.Main) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/pdf" // ⬅️ Compartilha diretamente como PDF real
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Compartilhar Fichas em PDF"))
+            }
+        }
     }
 }
