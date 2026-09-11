@@ -1,4 +1,4 @@
-package com.example.chama.ui.components.common.detalhescrismando.dialogs
+package com.example.chama.ui.components.presencas
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -43,7 +42,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun DialogFormularioCrismando(
+fun DialogNovoCrismando(
     crismandoParaEditar: Crismando? = null, // null = Novo | preenchido = Edição
     corDestaque: Color = MaterialTheme.colorScheme.primary,
     onSalvar: (Crismando) -> Unit,
@@ -51,8 +50,9 @@ fun DialogFormularioCrismando(
 ) {
     val isEdicao = crismandoParaEditar != null
 
-    // 1. Estados dos Campos
+    // 1. Estados dos Campos Completos
     var nome by remember { mutableStateOf(crismandoParaEditar?.nome ?: "") }
+    var cpf by remember { mutableStateOf(crismandoParaEditar?.cpf ?: "") }
 
     // Converte ISO (AAAA-MM-DD) para DDMMYYYY se for edição, permitindo a máscara correta
     var dataNascimentoDigitos by remember {
@@ -65,13 +65,26 @@ fun DialogFormularioCrismando(
         mutableStateOf(formatada)
     }
 
-    var telefone by remember { mutableStateOf(crismandoParaEditar?.celular ?: "") }
-    var nomeResponsavel by remember { mutableStateOf(crismandoParaEditar?.relacionamentoResponsavel ?: "") }
-    var telefoneResponsavel by remember { mutableStateOf(crismandoParaEditar?.celularResponsavel ?: "") }
+    var celular by remember { mutableStateOf(crismandoParaEditar?.celular ?: "") }
+    var genero by remember { mutableStateOf(crismandoParaEditar?.genero ?: "") }
+
+    var cidadeNascimento by remember { mutableStateOf(crismandoParaEditar?.cidadeNascimento ?: "") }
+    var estadoNascimento by remember { mutableStateOf(crismandoParaEditar?.estadoNascimento ?: "") }
+    var paisNascimento by remember { mutableStateOf(crismandoParaEditar?.paisNascimento ?: "Brasil") }
+
+    var endereco by remember { mutableStateOf(crismandoParaEditar?.endereco ?: "") }
+    var cep by remember { mutableStateOf(crismandoParaEditar?.cep ?: "") }
+    var cidadeAtual by remember { mutableStateOf(crismandoParaEditar?.cidadeAtual ?: "São Bernardo do Campo") }
+
+    var nomePai by remember { mutableStateOf(crismandoParaEditar?.nomePai ?: "") }
+    var nomeMae by remember { mutableStateOf(crismandoParaEditar?.nomeMae ?: "") }
+    var relacionamentoResponsavel by remember { mutableStateOf(crismandoParaEditar?.relacionamentoResponsavel ?: "") }
+    var celularResponsavel by remember { mutableStateOf(crismandoParaEditar?.celularResponsavel ?: "") }
 
     var isBatizado by remember { mutableStateOf(crismandoParaEditar?.isBatizado ?: true) }
     var certidaoEntregue by remember { mutableStateOf(crismandoParaEditar?.certidaoBatismoEntregue ?: false) }
     var paroquiaBatismo by remember { mutableStateOf(crismandoParaEditar?.paroquiaBatismo ?: "") }
+    var cidadeBatismo by remember { mutableStateOf(crismandoParaEditar?.cidadeBatismo ?: "") }
     var temPrimeiraComunhao by remember { mutableStateOf(crismandoParaEditar?.temPrimeiraComunhao ?: true) }
 
     var showConfirmacaoDialog by remember { mutableStateOf(false) }
@@ -91,13 +104,25 @@ fun DialogFormularioCrismando(
             crismandoId = crismandoParaEditar?.crismandoId ?: 0L,
             nome = nome.trim(),
             fotoUrl = crismandoParaEditar?.fotoUrl,
+            cpf = if (cpf.isNullOrBlank()) null else cpf.trim(),
             dataNascimento = parseDataParaIso(dataNascimentoDigitos),
-            celular = telefone.trim().ifBlank { null },
-            relacionamentoResponsavel = nomeResponsavel.trim().ifBlank { null },
-            celularResponsavel = telefoneResponsavel.trim().ifBlank { null },
+            celular = if (celular.isNullOrBlank()) null else celular.trim(),
+            cidadeNascimento = if (cidadeNascimento.isNullOrBlank()) null else cidadeNascimento.trim(),
+            estadoNascimento = if (estadoNascimento.isNullOrBlank()) null else estadoNascimento.trim(),
+            paisNascimento = if (paisNascimento.isNullOrBlank()) "Brasil" else paisNascimento.trim(),
+            endereco = if (endereco.isNullOrBlank()) null else endereco.trim(),
+            cep = if (cep.isNullOrBlank()) null else cep.trim(),
+            cidadeAtual = if (cidadeAtual.isNullOrBlank()) "Santo André" else cidadeAtual.trim(),
+            nomePai = if (nomePai.isNullOrBlank()) null else nomePai.trim(),
+            nomeMae = if (nomeMae.isNullOrBlank()) null else nomeMae.trim(),
+            relacionamentoResponsavel = if (relacionamentoResponsavel.isNullOrBlank()) null else relacionamentoResponsavel.trim(),
+            celularResponsavel = if (celularResponsavel.isNullOrBlank()) null else celularResponsavel.trim(),
             isBatizado = isBatizado,
+            batizadoNaDiocese = crismandoParaEditar?.batizadoNaDiocese ?: false,
+            paroquiaBatismo = if (isBatizado && !paroquiaBatismo.isNullOrBlank()) paroquiaBatismo.trim() else null,
+            cidadeBatismo = if (isBatizado && !cidadeBatismo.isNullOrBlank()) cidadeBatismo.trim() else null,
             certidaoBatismoEntregue = if (isBatizado) certidaoEntregue else false,
-            paroquiaBatismo = if (isBatizado) paroquiaBatismo.trim().ifBlank { null } else null,
+            certidaoBatismoUrl = crismandoParaEditar?.certidaoBatismoUrl,
             temPrimeiraComunhao = if (isBatizado) temPrimeiraComunhao else false
         )
     }
@@ -118,6 +143,7 @@ fun DialogFormularioCrismando(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // --- SEÇÃO: DADOS PESSOAIS ---
                 Text(
                     text = "Dados Pessoais",
                     style = MaterialTheme.typography.labelLarge,
@@ -130,6 +156,19 @@ fun DialogFormularioCrismando(
                     onValueChange = { nome = it },
                     label = { Text("Nome completo *") },
                     singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = cpf,
+                    onValueChange = { input ->
+                        cpf = input.filter { it.isDigit() }.take(11)
+                    },
+                    label = { Text("CPF") },
+                    placeholder = { Text("Apenas números") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -149,11 +188,11 @@ fun DialogFormularioCrismando(
                 )
 
                 OutlinedTextField(
-                    value = telefone,
+                    value = celular,
                     onValueChange = { input ->
-                        telefone = input.filter { it.isDigit() }.take(11)
+                        celular = input.filter { it.isDigit() }.take(11)
                     },
-                    label = { Text("Telefone (apenas números)") },
+                    label = { Text("Celular do Crismando") },
                     placeholder = { Text("Ex: 11987654321") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -163,28 +202,124 @@ fun DialogFormularioCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
+                // --- SEÇÃO: NATURALIDADE E ORIGEM ---
                 Text(
-                    text = "Responsável",
+                    text = "Naturalidade e Origem",
                     style = MaterialTheme.typography.labelLarge,
                     color = corDestaque,
                     fontWeight = FontWeight.Bold
                 )
 
                 OutlinedTextField(
-                    value = nomeResponsavel,
-                    onValueChange = { nomeResponsavel = it },
-                    label = { Text("Nome do Responsável") },
+                    value = cidadeNascimento,
+                    onValueChange = { cidadeNascimento = it },
+                    label = { Text("Cidade de Nascimento") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
-                    value = telefoneResponsavel,
+                    value = estadoNascimento,
+                    onValueChange = { estadoNascimento = it },
+                    label = { Text("Estado de Nascimento") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = paisNascimento,
+                    onValueChange = { paisNascimento = it },
+                    label = { Text("País de Nascimento") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // --- SEÇÃO: RESIDÊNCIA E ENDEREÇO ---
+                Text(
+                    text = "Residência e Endereço",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = corDestaque,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = endereco,
+                    onValueChange = { endereco = it },
+                    label = { Text("Endereço") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = cep,
                     onValueChange = { input ->
-                        telefoneResponsavel = input.filter { it.isDigit() }.take(11)
+                        cep = input.filter { it.isDigit() }.take(8)
                     },
-                    label = { Text("Telefone do Responsável") },
+                    label = { Text("CEP") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = cidadeAtual,
+                    onValueChange = { cidadeAtual = it },
+                    label = { Text("Cidade Atual") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // --- SEÇÃO: FILIAÇÃO E RESPONSÁVEL ---
+                Text(
+                    text = "Filiação e Responsável",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = corDestaque,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = nomePai,
+                    onValueChange = { nomePai = it },
+                    label = { Text("Nome do Pai") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = nomeMae,
+                    onValueChange = { nomeMae = it },
+                    label = { Text("Nome da Mãe") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = relacionamentoResponsavel,
+                    onValueChange = { relacionamentoResponsavel = it },
+                    label = { Text("Relacionamento / Nome Responsável") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = celularResponsavel,
+                    onValueChange = { input ->
+                        celularResponsavel = input.filter { it.isDigit() }.take(11)
+                    },
+                    label = { Text("Celular do Responsável") },
                     placeholder = { Text("Ex: 11987654321") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -194,6 +329,7 @@ fun DialogFormularioCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
+                // --- SEÇÃO: VIDA SACRAMENTAL ---
                 Text(
                     text = "Vida Sacramental",
                     style = MaterialTheme.typography.labelLarge,
@@ -211,6 +347,7 @@ fun DialogFormularioCrismando(
                                 temPrimeiraComunhao = false
                                 certidaoEntregue = false
                                 paroquiaBatismo = ""
+                                cidadeBatismo = ""
                             }
                         }
                         .padding(vertical = 4.dp),
@@ -233,6 +370,7 @@ fun DialogFormularioCrismando(
                                 temPrimeiraComunhao = false
                                 certidaoEntregue = false
                                 paroquiaBatismo = ""
+                                cidadeBatismo = ""
                             }
                         }
                     )
@@ -272,6 +410,15 @@ fun DialogFormularioCrismando(
                             onValueChange = { paroquiaBatismo = it },
                             label = { Text("Paróquia onde foi batizado") },
                             placeholder = { Text("Ex: São Geraldo Magella") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = cidadeBatismo,
+                            onValueChange = { cidadeBatismo = it },
+                            label = { Text("Cidade / Diocese de Batismo") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
@@ -352,13 +499,24 @@ fun DialogFormularioCrismando(
             fun boolTxt(b: Boolean) = if (b) "Sim" else "Não"
 
             diff("Nome", crismandoParaEditar.nome, crismandoNovo.nome)
+            diff("CPF", crismandoParaEditar.cpf, crismandoNovo.cpf)
             diff("Nascimento", crismandoParaEditar.dataNascimento, crismandoNovo.dataNascimento)
-            diff("Telefone", crismandoParaEditar.celular, crismandoNovo.celular)
+            diff("Celular", crismandoParaEditar.celular, crismandoNovo.celular)
+            diff("Gênero", crismandoParaEditar.genero, crismandoNovo.genero)
+            diff("Cidade Nasc.", crismandoParaEditar.cidadeNascimento, crismandoNovo.cidadeNascimento)
+            diff("Estado Nasc.", crismandoParaEditar.estadoNascimento, crismandoNovo.estadoNascimento)
+            diff("País Nasc.", crismandoParaEditar.paisNascimento, crismandoNovo.paisNascimento)
+            diff("Endereço", crismandoParaEditar.endereco, crismandoNovo.endereco)
+            diff("CEP", crismandoParaEditar.cep, crismandoNovo.cep)
+            diff("Cidade Atual", crismandoParaEditar.cidadeAtual, crismandoNovo.cidadeAtual)
+            diff("Nome Pai", crismandoParaEditar.nomePai, crismandoNovo.nomePai)
+            diff("Nome Mãe", crismandoParaEditar.nomeMae, crismandoNovo.nomeMae)
             diff("Responsável", crismandoParaEditar.relacionamentoResponsavel, crismandoNovo.relacionamentoResponsavel)
             diff("Tel. Responsável", crismandoParaEditar.celularResponsavel, crismandoNovo.celularResponsavel)
             diff("Batizado", boolTxt(crismandoParaEditar.isBatizado), boolTxt(crismandoNovo.isBatizado))
             diff("Certidão Entregue", boolTxt(crismandoParaEditar.certidaoBatismoEntregue), boolTxt(crismandoNovo.certidaoBatismoEntregue))
             diff("Paróquia Batismo", crismandoParaEditar.paroquiaBatismo, crismandoNovo.paroquiaBatismo)
+            diff("Cidade Batismo", crismandoParaEditar.cidadeBatismo, crismandoNovo.cidadeBatismo)
             diff("1ª Comunhão", boolTxt(crismandoParaEditar.temPrimeiraComunhao), boolTxt(crismandoNovo.temPrimeiraComunhao))
             lista
         }
@@ -369,7 +527,10 @@ fun DialogFormularioCrismando(
                 Text(text = "Confirmar Alterações", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     if (alteracoes.isEmpty()) {
                         Text("Nenhum dado foi modificado.")
                     } else {

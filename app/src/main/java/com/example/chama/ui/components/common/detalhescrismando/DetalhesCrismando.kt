@@ -26,7 +26,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -34,11 +36,14 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +61,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.canhub.cropper.CropImageContract
@@ -68,11 +74,11 @@ import com.example.chama.ui.StatusBlocoRifa
 import com.example.chama.ui.VinculoBlocoResult
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogAcoesBloco
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogExclusaoCrismando
-import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogFormularioCrismando
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogOpcoesFoto
 import com.example.chama.ui.components.common.detalhescrismando.dialogs.DialogVincularBloco
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoDadosContato
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoDadosPessoais
+import com.example.chama.utils.DataVisualTransformation
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoFiliacaoResidencia
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoFrequencia
 import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoRifasVinculadas
@@ -80,6 +86,7 @@ import com.example.chama.ui.components.common.detalhescrismando.sections.SecaoSa
 import com.example.chama.utils.FileUtils
 import java.io.File
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 data class BlocoItemUI(
     val numero: Int,
@@ -253,10 +260,57 @@ fun DetalhesCrismando(
     onVincularBloco: (crismandoId: Long, numeroBloco: Int, onError: (String) -> Unit, onSuccess: () -> Unit) -> Unit = { _, _, _, _ -> },
     onDesvincularBloco: (numeroBloco: Int) -> Unit = { _ -> },
     onAlternarPagamentoBloco: (numeroBloco: Int, estaPagoAtual: Boolean) -> Unit = { _, _ -> },
-    onImagemExpandidaMudou: (Boolean) -> Unit // <--- Novo parâmetro adicionado aqui
+    onImagemExpandidaMudou: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    // Estados de edição inline
+    var isEditing by remember { mutableStateOf(false) }
+
+    var nome by remember(crismando) { mutableStateOf(crismando.nome) }
+    var cpf by remember(crismando) { mutableStateOf(crismando.cpf ?: "") }
+    var dataNascimentoDigitos by remember(crismando) {
+        val formatada = crismando.dataNascimento?.let {
+            runCatching {
+                val data = LocalDate.parse(it)
+                data.format(DateTimeFormatter.ofPattern("ddMMyyyy"))
+            }.getOrNull()
+        } ?: ""
+        mutableStateOf(formatada)
+    }
+    var celular by remember(crismando) { mutableStateOf(crismando.celular ?: "") }
+    var genero by remember(crismando) { mutableStateOf(crismando.genero) }
+
+    var cidadeNascimento by remember(crismando) { mutableStateOf(crismando.cidadeNascimento ?: "") }
+    var estadoNascimento by remember(crismando) { mutableStateOf(crismando.estadoNascimento ?: "") }
+    var paisNascimento by remember(crismando) { mutableStateOf(crismando.paisNascimento ?: "Brasil") }
+
+    var endereco by remember(crismando) { mutableStateOf(crismando.endereco ?: "") }
+    var cep by remember(crismando) { mutableStateOf(crismando.cep ?: "") }
+    var cidadeAtual by remember(crismando) { mutableStateOf(crismando.cidadeAtual ?: "Santo André") }
+
+    var nomePai by remember(crismando) { mutableStateOf(crismando.nomePai ?: "") }
+    var nomeMae by remember(crismando) { mutableStateOf(crismando.nomeMae ?: "") }
+    var relacionamentoResponsavel by remember(crismando) { mutableStateOf(crismando.relacionamentoResponsavel ?: "") }
+    var celularResponsavel by remember(crismando) { mutableStateOf(crismando.celularResponsavel ?: "") }
+
+    var isBatizado by remember(crismando) { mutableStateOf(crismando.isBatizado) }
+    var batizadoNaDiocese by remember(crismando) { mutableStateOf(crismando.batizadoNaDiocese) }
+    var paroquiaBatismo by remember(crismando) { mutableStateOf(crismando.paroquiaBatismo ?: "") }
+    var cidadeBatismo by remember(crismando) { mutableStateOf(crismando.cidadeBatismo ?: "") }
+    var certidaoEntregue by remember(crismando) { mutableStateOf(crismando.certidaoBatismoEntregue) }
+    var certidaoBatismoUrl by remember(crismando) { mutableStateOf(crismando.certidaoBatismoUrl ?: "") }
+    var temPrimeiraComunhao by remember(crismando) { mutableStateOf(crismando.temPrimeiraComunhao) }
+
+    fun parseDataParaIso(digitos: String): String? {
+        return runCatching {
+            if (digitos.length == 8) {
+                val dtf = DateTimeFormatter.ofPattern("ddMMyyyy")
+                LocalDate.parse(digitos, dtf).toString()
+            } else null
+        }.getOrNull()
+    }
 
     // Estados de expansão das seções
     var expandirDadosPessoais by remember { mutableStateOf(false) }
@@ -275,7 +329,6 @@ fun DetalhesCrismando(
     }
 
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
-    var showEditarDialog by remember { mutableStateOf(false) }
     var showOpcoesFotoDialog by remember { mutableStateOf(false) }
     var showVincularBlocoDialog by remember { mutableStateOf(false) }
     var blocoSelecionadoParaAcoes by remember { mutableStateOf<BlocoItemUI?>(null) }
@@ -371,7 +424,7 @@ fun DetalhesCrismando(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Informações do Crismando",
+                        text = if (isEditing) "Editando Crismando" else "Informações do Crismando",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
@@ -422,75 +475,415 @@ fun DetalhesCrismando(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = crismando.nome,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (!isEditing) {
+                        Text(
+                            text = crismando.nome,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-                SecaoDadosPessoais(
-                    crismando = crismando,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirDadosPessoais,
-                    onToggleExpandir = { expandirDadosPessoais = !expandirDadosPessoais }
-                )
+                if (isEditing) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Dados Pessoais",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = corDestaque,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    OutlinedTextField(
+                        value = nome,
+                        onValueChange = { nome = it },
+                        label = { Text("Nome completo *") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
 
-                SecaoFiliacaoResidencia(
-                    crismando = crismando,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirFiliacaoResidencia,
-                    onToggleExpandir = { expandirFiliacaoResidencia = !expandirFiliacaoResidencia }
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    OutlinedTextField(
+                        value = cpf,
+                        onValueChange = { input ->
+                            cpf = input.filter { it.isDigit() }.take(11)
+                        },
+                        label = { Text("CPF") },
+                        placeholder = { Text("Apenas números") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
 
-                SecaoDadosContato(
-                    crismando = crismando,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirContatos,
-                    onToggleExpandir = { expandirContatos = !expandirContatos }
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    OutlinedTextField(
+                        value = dataNascimentoDigitos,
+                        onValueChange = { input ->
+                            dataNascimentoDigitos = input.filter { it.isDigit() }.take(8)
+                        },
+                        label = { Text("Data de Nascimento") },
+                        placeholder = { Text("DD/MM/AAAA") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        visualTransformation = DataVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
 
-                SecaoSacramentos(
-                    crismando = crismando,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirSacramentos,
-                    onToggleExpandir = { expandirSacramentos = !expandirSacramentos }
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    OutlinedTextField(
+                        value = celular,
+                        onValueChange = { input ->
+                            celular = input.filter { it.isDigit() }.take(11)
+                        },
+                        label = { Text("Celular do Crismando") },
+                        placeholder = { Text("Ex: 11987654321") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
 
-                SecaoFrequencia(
-                    totalPresentes = totalPresentes,
-                    totalFaltas = totalFaltas,
-                    totalEncontrosRealizados = totalEncontrosRealizados,
-                    porcentagemPresenca = porcentagemPresenca,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirFrequencia,
-                    onToggleExpandir = { expandirFrequencia = !expandirFrequencia }
-                )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Text(
+                        text = "Naturalidade e Origem",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = corDestaque,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                SecaoRifasVinculadas(
-                    blocosVinculados = blocosVinculados,
-                    corDestaque = corDestaque,
-                    isExpandido = expandirRifas,
-                    onToggleExpandir = { expandirRifas = !expandirRifas },
-                    onAbrirVincular = { showVincularBlocoDialog = true },
-                    onClicarBloco = { blocoItem -> blocoSelecionadoParaAcoes = blocoItem }
-                )
+                    OutlinedTextField(
+                        value = cidadeNascimento,
+                        onValueChange = { cidadeNascimento = it },
+                        label = { Text("Cidade de Nascimento") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = estadoNascimento,
+                        onValueChange = { estadoNascimento = it },
+                        label = { Text("Estado de Nascimento") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = paisNascimento,
+                        onValueChange = { paisNascimento = it },
+                        label = { Text("País de Nascimento") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Residência e Endereço",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = corDestaque,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = endereco,
+                        onValueChange = { endereco = it },
+                        label = { Text("Endereço") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = cep,
+                        onValueChange = { input ->
+                            cep = input.filter { it.isDigit() }.take(8)
+                        },
+                        label = { Text("CEP") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = cidadeAtual,
+                        onValueChange = { cidadeAtual = it },
+                        label = { Text("Cidade Atual") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Filiação e Responsável",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = corDestaque,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = nomePai,
+                        onValueChange = { nomePai = it },
+                        label = { Text("Nome do Pai") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = nomeMae,
+                        onValueChange = { nomeMae = it },
+                        label = { Text("Nome da Mãe") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = relacionamentoResponsavel,
+                        onValueChange = { relacionamentoResponsavel = it },
+                        label = { Text("Relacionamento / Nome Responsável") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = celularResponsavel,
+                        onValueChange = { input ->
+                            celularResponsavel = input.filter { it.isDigit() }.take(11)
+                        },
+                        label = { Text("Celular do Responsável") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Vida Sacramental",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = corDestaque,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                isBatizado = !isBatizado
+                                if (!isBatizado) {
+                                    temPrimeiraComunhao = false
+                                    certidaoEntregue = false
+                                    paroquiaBatismo = ""
+                                    cidadeBatismo = ""
+                                    certidaoBatismoUrl = ""
+                                }
+                            }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("É Batizado?", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = if (isBatizado) "Possui o sacramento do batismo" else "Receberá durante a catequese",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isBatizado,
+                            onCheckedChange = { novoValor ->
+                                isBatizado = novoValor
+                                if (!novoValor) {
+                                    temPrimeiraComunhao = false
+                                    certidaoEntregue = false
+                                    paroquiaBatismo = ""
+                                    cidadeBatismo = ""
+                                    certidaoBatismoUrl = ""
+                                }
+                            }
+                        )
+                    }
+
+                    if (isBatizado) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { certidaoEntregue = !certidaoEntregue },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = certidaoEntregue,
+                                onCheckedChange = { certidaoEntregue = it }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Certidão de Batismo entregue",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = paroquiaBatismo,
+                            onValueChange = { paroquiaBatismo = it },
+                            label = { Text("Paróquia onde foi batizado") },
+                            placeholder = { Text("Ex: São Geraldo Magella") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = cidadeBatismo,
+                            onValueChange = { cidadeBatismo = it },
+                            label = { Text("Cidade / Diocese de Batismo (opcional)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isBatizado) { temPrimeiraComunhao = !temPrimeiraComunhao }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Primeira Comunhão?",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isBatizado) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                            Text(
+                                text = when {
+                                    !isBatizado -> "Requer o Batismo prévio"
+                                    temPrimeiraComunhao -> "Já recebeu a 1ª Eucaristia"
+                                    else -> "Receberá durante a catequese"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isBatizado) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                        Switch(
+                            checked = temPrimeiraComunhao,
+                            onCheckedChange = { temPrimeiraComunhao = it },
+                            enabled = isBatizado
+                        )
+                    }
+                } else {
+                    SecaoDadosPessoais(
+                        crismando = crismando,
+                        corDestaque = corDestaque,
+                        isExpandido = expandirDadosPessoais,
+                        onToggleExpandir = { expandirDadosPessoais = !expandirDadosPessoais }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                    SecaoFiliacaoResidencia(
+                        crismando = crismando,
+                        corDestaque = corDestaque,
+                        isExpandido = expandirFiliacaoResidencia,
+                        onToggleExpandir = { expandirFiliacaoResidencia = !expandirFiliacaoResidencia }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                    SecaoDadosContato(
+                        crismando = crismando,
+                        corDestaque = corDestaque,
+                        isExpandido = expandirContatos,
+                        onToggleExpandir = { expandirContatos = !expandirContatos }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                    SecaoSacramentos(
+                        crismando = crismando,
+                        corDestaque = corDestaque,
+                        isExpandido = expandirSacramentos,
+                        onToggleExpandir = { expandirSacramentos = !expandirSacramentos }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                    SecaoFrequencia(
+                        totalPresentes = totalPresentes,
+                        totalFaltas = totalFaltas,
+                        totalEncontrosRealizados = totalEncontrosRealizados,
+                        porcentagemPresenca = porcentagemPresenca,
+                        corDestaque = corDestaque,
+                        isExpandido = expandirFrequencia,
+                        onToggleExpandir = { expandirFrequencia = !expandirFrequencia }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                    SecaoRifasVinculadas(
+                        blocosVinculados = blocosVinculados,
+                        corDestaque = corDestaque,
+                        isExpandido = expandirRifas,
+                        onToggleExpandir = { expandirRifas = !expandirRifas },
+                        onAbrirVincular = { showVincularBlocoDialog = true },
+                        onClicarBloco = { blocoItem -> blocoSelecionadoParaAcoes = blocoItem }
+                    )
+                }
             }
 
-            // Barra Flutuante com Botões de Ação Inferiores (Editar / Excluir)
+            // Barra Flutuante com Botões de Ação Inferiores
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -510,31 +903,89 @@ fun DetalhesCrismando(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { showEditarDialog = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        )
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Editar")
-                    }
+                    if (isEditing) {
+                        OutlinedButton(
+                            onClick = {
+                                if (nome.isNotBlank()) {
+                                    val crismandoAtualizado = crismando.copy(
+                                        nome = nome.trim(),
+                                        cpf = cpf.trim().ifBlank { null },
+                                        dataNascimento = parseDataParaIso(dataNascimentoDigitos),
+                                        celular = celular.trim().ifBlank { null },
+                                        genero = genero,
+                                        cidadeNascimento = cidadeNascimento.trim().ifBlank { null },
+                                        estadoNascimento = estadoNascimento.trim().ifBlank { null },
+                                        paisNascimento = paisNascimento.trim().ifBlank { "Brasil" },
+                                        endereco = endereco.trim().ifBlank { null },
+                                        cep = cep.trim().ifBlank { null },
+                                        cidadeAtual = cidadeAtual.trim().ifBlank { "Santo André" },
+                                        nomePai = nomePai.trim().ifBlank { null },
+                                        nomeMae = nomeMae.trim().ifBlank { null },
+                                        relacionamentoResponsavel = relacionamentoResponsavel.trim().ifBlank { null },
+                                        celularResponsavel = celularResponsavel.trim().ifBlank { null },
+                                        isBatizado = isBatizado,
+                                        batizadoNaDiocese = batizadoNaDiocese,
+                                        paroquiaBatismo = if (isBatizado) paroquiaBatismo.trim().ifBlank { null } else null,
+                                        cidadeBatismo = if (isBatizado) cidadeBatismo.trim().ifBlank { null } else null,
+                                        certidaoBatismoEntregue = if (isBatizado) certidaoEntregue else false,
+                                        certidaoBatismoUrl = if (isBatizado) certidaoBatismoUrl.trim().ifBlank { null } else null,
+                                        temPrimeiraComunhao = if (isBatizado) temPrimeiraComunhao else false
+                                    )
+                                    onAtualizar(crismandoAtualizado)
+                                    isEditing = false
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = corDestaque,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Salvar")
+                        }
 
-                    OutlinedButton(
-                        onClick = { showConfirmarExclusaoDialog = true },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.error
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Excluir")
+                        OutlinedButton(
+                            onClick = { isEditing = false },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Cancelar")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { isEditing = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Editar")
+                        }
+
+                        OutlinedButton(
+                            onClick = { showConfirmarExclusaoDialog = true },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Excluir")
+                        }
                     }
                 }
             }
@@ -654,15 +1105,6 @@ fun DetalhesCrismando(
             },
             onRemoverFoto = { removerFotoLogica() },
             onDismiss = { showOpcoesFotoDialog = false }
-        )
-    }
-
-    if (showEditarDialog) {
-        DialogFormularioCrismando(
-            crismandoParaEditar = crismando,
-            corDestaque = corDestaque,
-            onSalvar = onAtualizar,
-            onDismiss = { showEditarDialog = false }
         )
     }
 
