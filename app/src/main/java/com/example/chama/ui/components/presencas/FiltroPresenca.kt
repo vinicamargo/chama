@@ -164,7 +164,7 @@ fun FiltroPresenca(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Fichas Cadastrais (2 por folha)")
+                        Text("Fichas Cadastrais (PDF)")
                     }
                 }
             },

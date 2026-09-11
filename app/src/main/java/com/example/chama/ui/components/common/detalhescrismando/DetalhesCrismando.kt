@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +96,9 @@ fun DetalhesCrismandoContainer(
     listaCrismandos: List<Crismando> = emptyList(),
     onExcluidoComSucesso: () -> Unit = onFechar
 ) {
+    // Estado compartilhado para saber se QUALQUER imagem está expandida no momento
+    var imagemExpandidaGlobal by remember { mutableStateOf(false) }
+
     if (listaCrismandos.isNotEmpty()) {
         val total = listaCrismandos.size
         val indexInicial = remember(crismando.crismandoId, listaCrismandos) {
@@ -110,7 +116,9 @@ fun DetalhesCrismandoContainer(
         HorizontalPager(
             state = pagerState,
             modifier = modifier.fillMaxSize(),
-            beyondViewportPageCount = 1
+            beyondViewportPageCount = 1,
+            // Bloqueia o deslizar lateral de todo o carrossel se a imagem estiver expandida
+            userScrollEnabled = !imagemExpandidaGlobal
         ) { paginaVirtual ->
             val indexReal = paginaVirtual % total
             val crismandoAtual = listaCrismandos[indexReal]
@@ -125,7 +133,10 @@ fun DetalhesCrismandoContainer(
                     crismando = crismandoAtual,
                     viewModel = viewModel,
                     onFechar = onFechar,
-                    onExcluidoComSucesso = onExcluidoComSucesso
+                    onExcluidoComSucesso = onExcluidoComSucesso,
+                    onImagemExpandidaMudou = { expandida ->
+                        imagemExpandidaGlobal = expandida
+                    }
                 )
             }
         }
@@ -135,7 +146,8 @@ fun DetalhesCrismandoContainer(
             viewModel = viewModel,
             onFechar = onFechar,
             onExcluidoComSucesso = onExcluidoComSucesso,
-            modifier = modifier
+            modifier = modifier,
+            onImagemExpandidaMudou = {}
         )
     }
 }
@@ -146,7 +158,8 @@ private fun DetalhesCrismandoItemCarrossel(
     viewModel: MainViewModel,
     onFechar: () -> Unit,
     onExcluidoComSucesso: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onImagemExpandidaMudou: (Boolean) -> Unit
 ) {
     val listaRifas by viewModel.listaRifas.collectAsState()
     val diasComChamada by viewModel.diasComChamada.collectAsState()
@@ -218,7 +231,8 @@ private fun DetalhesCrismandoItemCarrossel(
             if (rifaExemplo != null) {
                 viewModel.alternarPagamentoRifa(rifaExemplo)
             }
-        }
+        },
+        onImagemExpandidaMudou = onImagemExpandidaMudou
     )
 }
 
@@ -238,7 +252,8 @@ fun DetalhesCrismando(
     onVerificarBloco: suspend (numeroBloco: Int) -> StatusBlocoRifa = { StatusBlocoRifa.Disponivel },
     onVincularBloco: (crismandoId: Long, numeroBloco: Int, onError: (String) -> Unit, onSuccess: () -> Unit) -> Unit = { _, _, _, _ -> },
     onDesvincularBloco: (numeroBloco: Int) -> Unit = { _ -> },
-    onAlternarPagamentoBloco: (numeroBloco: Int, estaPagoAtual: Boolean) -> Unit = { _, _ -> }
+    onAlternarPagamentoBloco: (numeroBloco: Int, estaPagoAtual: Boolean) -> Unit = { _, _ -> },
+    onImagemExpandidaMudou: (Boolean) -> Unit // <--- Novo parâmetro adicionado aqui
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -251,6 +266,13 @@ fun DetalhesCrismando(
     var expandirPadrinhos by remember { mutableStateOf(false) }
     var expandirFrequencia by remember { mutableStateOf(false) }
     var expandirRifas by remember { mutableStateOf(false) }
+
+    // Estado para controlar a expansão da imagem em tela cheia
+    var imagemExpandida by remember { mutableStateOf(false) }
+
+    LaunchedEffect(imagemExpandida) {
+        onImagemExpandidaMudou(imagemExpandida)
+    }
 
     var showConfirmarExclusaoDialog by remember { mutableStateOf(false) }
     var showEditarDialog by remember { mutableStateOf(false) }
@@ -312,6 +334,22 @@ fun DetalhesCrismando(
         )
     }
 
+    val removerFotoLogica = {
+        runCatching {
+            val fotoUrl = crismando.fotoUrl
+            if (fotoUrl != null) {
+                val uri = Uri.parse(fotoUrl)
+                if (uri.scheme == "content") {
+                    context.contentResolver.delete(uri, null, null)
+                } else {
+                    val file = File(fotoUrl)
+                    if (file.exists()) file.delete()
+                }
+            }
+        }
+        onAtualizar(crismando.copy(fotoUrl = null))
+    }
+
     Card(
         modifier = modifier
             .fillMaxSize()
@@ -356,7 +394,13 @@ fun DetalhesCrismando(
                             .size(135.dp)
                             .clip(CircleShape)
                             .background(corDestaque.copy(alpha = 0.2f))
-                            .clickable { showOpcoesFotoDialog = true },
+                            .clickable {
+                                if (!crismando.fotoUrl.isNullOrBlank()) {
+                                    imagemExpandida = true
+                                } else {
+                                    showOpcoesFotoDialog = true
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         if (!crismando.fotoUrl.isNullOrBlank()) {
@@ -415,7 +459,6 @@ fun DetalhesCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-                // 4. Situação Sacramental (Batismo, Paróquia, Diocese, Certidão)
                 SecaoSacramentos(
                     crismando = crismando,
                     corDestaque = corDestaque,
@@ -425,7 +468,6 @@ fun DetalhesCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-                // 6. Frequência
                 SecaoFrequencia(
                     totalPresentes = totalPresentes,
                     totalFaltas = totalFaltas,
@@ -438,7 +480,6 @@ fun DetalhesCrismando(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-                // 7. Rifas
                 SecaoRifasVinculadas(
                     blocosVinculados = blocosVinculados,
                     corDestaque = corDestaque,
@@ -449,7 +490,7 @@ fun DetalhesCrismando(
                 )
             }
 
-            // Barra Flutuante com Botões de Ação
+            // Barra Flutuante com Botões de Ação Inferiores (Editar / Excluir)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -497,6 +538,86 @@ fun DetalhesCrismando(
                     }
                 }
             }
+
+            // --- TELA CHEIA / ZOOM DA IMAGEM ---
+            if (imagemExpandida) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.95f))
+                        // Bloqueia qualquer gesto de toque/deslize de vazar para o Pager e detecta o clique fora
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = {
+                                    // Clicar fora da imagem fecha a visualização
+                                    imagemExpandida = false
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Imagem Ocupando Toda a Largura Horizontalmente
+                    AsyncImage(
+                        model = crismando.fotoUrl,
+                        contentDescription = "Foto ampliada de ${crismando.nome}",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(400.dp)
+                            // Consome o toque na imagem para não fechar o overlay por engano
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { /* Não faz nada, apenas consome */ })
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+
+                    // Opções de Trocar ou Remover na parte de baixo
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            // Consome o toque na barra de botões para não fechar o overlay
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { /* Não faz nada, apenas consome */ })
+                            }
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                imagemExpandida = false
+                                showOpcoesFotoDialog = true
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.DarkGray.copy(alpha = 0.6f),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Trocar")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                imagemExpandida = false
+                                removerFotoLogica()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.DarkGray.copy(alpha = 0.6f),
+                                contentColor = Color.Red
+                            )
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Remover")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -531,21 +652,7 @@ fun DetalhesCrismando(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
             },
-            onRemoverFoto = {
-                runCatching {
-                    val fotoUrl = crismando.fotoUrl
-                    if (fotoUrl != null) {
-                        val uri = Uri.parse(fotoUrl)
-                        if (uri.scheme == "content") {
-                            context.contentResolver.delete(uri, null, null)
-                        } else {
-                            val file = File(fotoUrl)
-                            if (file.exists()) file.delete()
-                        }
-                    }
-                }
-                onAtualizar(crismando.copy(fotoUrl = null))
-            },
+            onRemoverFoto = { removerFotoLogica() },
             onDismiss = { showOpcoesFotoDialog = false }
         )
     }

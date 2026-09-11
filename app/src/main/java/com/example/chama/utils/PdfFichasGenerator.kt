@@ -220,7 +220,7 @@ object PdfFichasGenerator {
         desenharCampo(canvas, textPaint, x + 380f, curY, "1ª Eucaristia?:", eucBox)
         curY += 22f
 
-        val paroquiaTxt = "${c.paroquiaBatismo ?: "Não informada"} (${c.cidadeBatismo ?: "Santo André"})"
+        val paroquiaTxt = "${c.paroquiaBatismo ?: "Não informada"}"
         desenharCampo(canvas, textPaint, x + paddingHorizontal + 4f, curY, "Paróquia Batismo:", paroquiaTxt)
         curY += 22f
 
