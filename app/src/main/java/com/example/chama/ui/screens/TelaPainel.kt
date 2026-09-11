@@ -37,13 +37,14 @@ import com.example.chama.data.entity.Crismando
 import com.example.chama.data.entity.Genero
 import com.example.chama.ui.MainViewModel
 import com.example.chama.ui.components.common.detalhescrismando.DetalhesCrismandoContainer
-import com.example.chama.ui.components.gerencial.AniversarianteInfo
-import com.example.chama.ui.components.gerencial.CardCrismandosPorFaltas
-import com.example.chama.ui.components.gerencial.CardDistribuicaoGenero
-import com.example.chama.ui.components.gerencial.CardFaixaEtaria
-import com.example.chama.ui.components.gerencial.CardFrequenciaGeral
-import com.example.chama.ui.components.gerencial.CardMetricasCabecalho
-import com.example.chama.ui.components.gerencial.CardProximosAniversarios
+import com.example.chama.ui.components.painel.AniversarianteInfo
+import com.example.chama.ui.components.painel.CardCrismandosPorFaltas
+import com.example.chama.ui.components.painel.CardDistribuicaoGenero
+import com.example.chama.ui.components.painel.CardFaixaEtaria
+import com.example.chama.ui.components.painel.CardFrequenciaGeral
+import com.example.chama.ui.components.painel.CardGraficoSacramentos
+import com.example.chama.ui.components.painel.CardMetricasCabecalho
+import com.example.chama.ui.components.painel.CardProximosAniversarios
 import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
@@ -211,6 +212,10 @@ fun TelaPainelGerencial(
         }.sortedBy { it.diasRestantes }
     }
 
+    val totalBatizados = remember(crismandos) { crismandos.count { it.isBatizado } }
+    val totalCertidaoEntregue = remember(crismandos) { crismandos.count { it.certidaoBatismoEntregue } }
+    val totalPrimeiraComunhao = remember(crismandos) { crismandos.count { it.temPrimeiraComunhao } }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -262,6 +267,13 @@ fun TelaPainelGerencial(
                     totalMeninos = totalMeninos,
                     totalMeninas = totalMeninas,
                     total = totalCrismandos
+                )
+
+                CardGraficoSacramentos(
+                    totalCrismandos = totalCrismandos,
+                    totalBatizados = totalBatizados,
+                    totalCertidaoEntregue = totalCertidaoEntregue,
+                    totalPrimeiraComunhao = totalPrimeiraComunhao
                 )
 
                 CardProximosAniversarios(
