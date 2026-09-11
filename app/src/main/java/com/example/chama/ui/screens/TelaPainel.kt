@@ -270,10 +270,9 @@ fun TelaPainelGerencial(
                 )
 
                 CardGraficoSacramentos(
-                    totalCrismandos = totalCrismandos,
-                    totalBatizados = totalBatizados,
-                    totalCertidaoEntregue = totalCertidaoEntregue,
-                    totalPrimeiraComunhao = totalPrimeiraComunhao
+                    crismandos = crismandos,
+                    corDestaque = Color(0xFF9B8800),
+                    onCrismandoClick = { crismandoDetalhes = it }
                 )
 
                 CardProximosAniversarios(
